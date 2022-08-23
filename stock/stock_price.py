@@ -133,6 +133,38 @@ class KzzStockPrice(object):
                 with sqlite3.connect(gl_v.db_path) as conn:
                     dragon_t.to_sql(code+'_'+str(fq), con=conn, if_exists='replace', index=False)
 
+    @staticmethod  # 东财delete
+    def east_history_k_data2(save=''):
+        import requests
+        import demjson
+        import time
+
+        # 显示所有列
+        pd.set_option('display.max_columns', None)
+        # # 显示所有行
+        # pd.set_option('display.max_rows', None)
+        net = r"""https://datacenter-web.eastmoney.com/api/data/v1/get?callback=&sortColumns=NOTICE_DATE%2CRECEIVE_START_DATE%2CSECURITY_CODE%2CNUMBERNEW&sortTypes=-1%2C-1%2C1%2C-1&pageSize=500&pageNumber={}&reportName=RPT_ORG_SURVEY&columns=SECUCODE%2CSECURITY_CODE%2CSECURITY_NAME_ABBR%2CNOTICE_DATE%2CRECEIVE_START_DATE%2CRECEIVE_OBJECT%2CRECEIVE_PLACE%2CRECEIVE_WAY_EXPLAIN%2CINVESTIGATORS%2CRECEPTIONIST%2CORG_TYPE&quoteColumns=f2~01~SECURITY_CODE~CLOSE_PRICE%2Cf3~01~SECURITY_CODE~CHANGE_RATE&quoteType=0&source=WEB&client=WEB&filter=(IS_SOURCE%3D%221%22)(RECEIVE_START_DATE%3E%272019-08-17%27)"""
+        dragon_t = requests.get(net.format(1)).text
+        dragon_t = demjson.decode(dragon_t).get('result', '')
+        pages = dragon_t.get('pages', '') + 1
+        if dragon_t:
+            for i in range(2,pages):
+                dragon_t = pd.DataFrame(dragon_t.get('data', ''))
+                dragon_t = dragon_t.drop(labels=['SECUCODE','CHANGE_RATE', 'CLOSE_PRICE'], axis=1)  # 同时删除a,b列
+                dragon_t['RECEIVE_START_DATE'] = dragon_t['RECEIVE_START_DATE'].str[:10]  # 去除日期后面的0000
+                dragon_t['NOTICE_DATE'] = dragon_t['NOTICE_DATE'].str[:10]
+                # print(dragon_t.head(1))
+                # print(dragon_t.dtypes)
+                if save == "y":  # 是否保存
+                    with sqlite3.connect(gl_v.db_path) as conn:
+                        dragon_t.to_sql('east_jg_dy_detail', con=conn, if_exists='append', index=False)
+                dragon_t = requests.get(net.format(i)).text
+                dragon_t = demjson.decode(dragon_t).get('result', '')
+                time.sleep(1.5)
+
 stock = KzzStockPrice()
-stock.east_history_k_data('603233', fq=2, save='y')  # fq=1前，=2后复权 大参
+# stock.east_history_k_data('603233', fq=2, save='y')  # fq=1前，=2后复权 大参
 # stock.east_history_k_data('603368', fq=2, save='y')  # fq=1前，=2后复权  柳药
+stock.east_history_k_data2(save='y')  #
+
+
