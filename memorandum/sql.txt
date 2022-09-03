@@ -14,4 +14,5 @@ east_yj_yg."业绩变动原因" IS NOT NULL AND
 east_yj_yg."预测指标" NOT LIKE '%营业收入%' AND
 east_yj_yg."上年同期值" IS NOT NULL
 GROUP BY
+east_yj_yg."公告日期",
 east_yj_yg."股票代码"

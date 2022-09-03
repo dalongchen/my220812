@@ -1,1 +1,9 @@
 control + c退出serve
+
+ls -il软连接  ls  -l, 
+unlink npm删除软连接
+chmod 777 /data/home/chen/nodejs
+sudo ln -s /data/home/chen/nodejs/node1616/bin/node /usr/local/bin
+
+ cd quasar-project                                                                                           
+  quasar dev # or: yarn quasar dev # or: npx quasar dev

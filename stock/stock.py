@@ -55,13 +55,13 @@ class Stock(object):
             """加列"""
             # cur.execute(r"""alter table '{}' add y_v_change number(4)""".format(my_tab))
 
-            data = pd.read_sql(r"select 日期,涨跌幅 from '{}'".format(s_code), conn)
+            data = pd.read_sql("select 日期,涨跌幅 from '{}'".format(s_code), conn)
             # data = pd.read_sql(se_sql, conn, parse_dates=['date'])
 
             """滚动计算年华波动率"""
             data['y_v_change'] = (np.sqrt(244) * (data['涨跌幅'] / 100).rolling(122).std()).round(3)
             # data = data.loc[:, ['y_v_change', '日期']]
-
+            print(data.head())
             """更新"""
             # cur.executemany("UPDATE '{}' SET y_v_change=(?) WHERE 日期=(?)".format(my_tab), data.loc[:, ['y_v_change', '日期']].values)
             cur.close()
@@ -145,8 +145,9 @@ class Stock(object):
 
 stock = Stock()
 # stock.for_code()
-# stock.history_volatility('df601398hfq','sh601398my')   # 历史波动率
-stock.stock_yj_yg_em_yz_code('east_yj_yg')   # 获取业绩预增代码去获得其行情数据
+stock.history_volatility('df601398hfq','sh601398my')   # 历史波动率df601398hfq
+# stock.stock_yj_yg_em_yz_code('east_yj_yg')   # 获取业绩预增代码去获得其行情数据
 
 
 
+ 
