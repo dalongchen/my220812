@@ -22,7 +22,7 @@ class StockPlt(object):
             sns.lineplot(x="日期", y="total_v_rate", data=df_s)
             plt.title('{}历史投资收益率比'.format(tab_s[:-2]))
             # plt.show()
-            plt.savefig(r'D:\myzq\axzq\T0002\stock_load\my_stock\bank_picture\{}.png'.format(tab_s[:-2]), dpi=600, format='png')
+            # plt.savefig(r'D:\myzq\axzq\T0002\stock_load\my_stock\bank_picture\{}.png'.format(tab_s[:-2]), dpi=600, format='png')
 
     # @gl_v.time_show  # 银行柱状图
     def sea_bar(self):
@@ -56,18 +56,19 @@ class StockPlt(object):
         # # plt.show()
         # plt.savefig(r'D:\myzq\axzq\T0002\stock_load\my_stock\bank_picture\{}.png'.format('500亿银行'), dpi=600, format='png')
 
-    @staticmethod  # bs下隐含波动率,历史波动率和价格
-    def implication_v_log_close(df_b):
-        # sns.lineplot(data=df_b['y_v_log'])
-        # plt.title('大参可转债历史波动率 ')
-        # plt.title('柳药可转债历史波动率 ')
-        # sns.lineplot(data=df_b['implication_volatility'])
-        # plt.title('大参可转债隐含波动率 ')
-        # sns.lineplot(data=df_b[['implication_volatility', 'y_v_log']])
-        # plt.title('大参隐含波动率、历史波动率对比图')
-        sns.lineplot(data=df_b[['implication_volatility', 'y_v_log', 'close']])
-        plt.title('大参隐含波动率、历史波动率和转债收盘价对比图')
-        plt.show()
+    @staticmethod  # 历史波动率和价格
+    def hist_v_close(tab_s):
+        with sqlite3.connect(gl_v.db_path) as conn:
+            df_s = pd.read_sql(r"select 日期,y_v_change from '{}' ".format(tab_s), conn, parse_dates=["日期"]).dropna()
+            # print(df_s[pd.isna(df_s['y_v_change']) == True])
+            # print(df_s[pd.isnull(df_s['y_v_change']) == True])
+            df_s = df_s.set_index('日期')
+            plt.figure(figsize=(15, 8))
+            sns.lineplot(data=df_s['y_v_change'])
+            plt.title('历史年波动率 ')
+            # sns.lineplot(data=df_s[['y_v_change', 'close']])
+            # plt.title('历史波动率和收盘价对比图')
+            plt.show()
 
     @staticmethod  # 蒙特卡洛下隐含波动率,历史波动率、bs隐含波动率和价格
     def mc_implication_v_log_close(df_b, name):
@@ -208,9 +209,8 @@ class StockPlt(object):
 if __name__ == '__main__':
     ksb = StockPlt()
     # ksb.for_code()  # 银行投资收益率比
-    ksb.sea_bar()  # 银行柱状图
-
-    # ksb.sea_volatility(tab_b=gl_v.tab_b, tab_s=gl_v.tab_s)
+    # ksb.sea_bar()  # 银行柱状图
+    ksb.hist_v_close(tab_s='sh601398my')
 
     # ksb.sea_history_implication_volatility(tab_b=gl_v.da_sen_b, tab_s=gl_v.da_sen_s, f_normal='y')  # 大参
     # ksb.sea_history_implication_volatility(tab_b=gl_v.liu_yao_b, tab_s=gl_v.liu_yao_s, f_normal='')  # 柳药

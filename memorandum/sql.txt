@@ -1,0 +1,18 @@
+SELECT * FROM east_yj_yg where "预告类型"='预增' AND "业绩变动" LIKE '%2021年1-3%'
+
+SELECT
+*
+FROM east_yj_yg
+WHERE
+east_yj_yg."预告类型" = '预增' AND
+east_yj_yg."业绩变动" LIKE '%2021年1-3%' AND
+east_yj_yg."股票代码" NOT LIKE '688%' AND
+east_yj_yg."股票代码" NOT LIKE '900%' AND
+east_yj_yg."股票代码" NOT LIKE '83%' AND
+east_yj_yg."股票代码" NOT LIKE '200%' AND
+east_yj_yg."业绩变动原因" IS NOT NULL AND
+east_yj_yg."预测指标" NOT LIKE '%营业收入%' AND
+east_yj_yg."上年同期值" IS NOT NULL
+GROUP BY
+east_yj_yg."公告日期",
+east_yj_yg."股票代码"

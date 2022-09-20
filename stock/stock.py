@@ -48,6 +48,58 @@ class Stock(object):
         data_s['total_v_rate'] = data_s['total_v_rate'].round(3)
         return data_s[['日期', 'total_v_rate']]
 
+    @staticmethod  # 复权后历史波动率
+    def history_volatility(s_code, my_tab):
+        with sqlite3.connect(gl_v.db_path) as conn:
+            cur = conn.cursor()
+            """加列"""
+            # cur.execute(r"""alter table '{}' add y_v_change number(4)""".format(my_tab))
+
+            data = pd.read_sql("select 日期,涨跌幅 from '{}'".format(s_code), conn)
+            # data = pd.read_sql(se_sql, conn, parse_dates=['date'])
+
+            """滚动计算年华波动率"""
+            data['y_v_change'] = (np.sqrt(244) * (data['涨跌幅'] / 100).rolling(122).std()).round(3)
+            # data = data.loc[:, ['y_v_change', '日期']]
+            print(data.head())
+            """更新"""
+            # cur.executemany("UPDATE '{}' SET y_v_change=(?) WHERE 日期=(?)".format(my_tab), data.loc[:, ['y_v_change', '日期']].values)
+            cur.close()
+
+    @staticmethod  # 复权后历史波动率
+    def stock_yj_yg_em_yz_code(s_code, my_tab):
+        with sqlite3.connect(gl_v.db_path) as conn:
+            data = pd.read_sql(r"""select 股票代码 from '{}' where '预告类型'='预增' AND '业绩变动' LIKE '%2021年1-3%'""".format(s_code), conn)
+            # data = pd.read_sql(se_sql, conn, parse_dates=['date'])
+
+    @gl_v.time_show  # 获取业绩预增代码写入通达信去获得其行情数据
+    def stock_yj_yg_em_yz_code(self, s_code):
+        with sqlite3.connect(gl_v.db_path) as conn:
+            data = pd.read_sql(r"""SELECT
+                股票代码
+                FROM {}
+                WHERE
+                east_yj_yg."预告类型" = '预增' AND
+                east_yj_yg."业绩变动" LIKE '%2021年1-3%' AND
+                east_yj_yg."业绩变动原因" IS NOT NULL AND
+                east_yj_yg."预测指标" NOT LIKE '%营业收入%' AND
+                east_yj_yg."上年同期值" IS NOT NULL and
+                (east_yj_yg."股票代码" LIKE '60%' OR
+                east_yj_yg."股票代码" LIKE '00%' OR
+                east_yj_yg."股票代码" LIKE '30%')
+                GROUP BY
+                east_yj_yg."公告日期",
+                east_yj_yg."股票代码"
+                """.format(s_code), conn)
+            data['股票代码'] = np.where((data['股票代码'].str[:2] == '00') | (data['股票代码'].str[:2] == '30'), '0'+data['股票代码'], data['股票代码'])
+            data['股票代码'] = np.where(data['股票代码'].str[:2] == '60', '1'+data['股票代码'], data['股票代码'])
+
+            # data['股票代码'] = data['股票代码'].mask(data['股票代码'].str[:2] == '60', '1'+data['股票代码'])
+            # data['股票代码'] = data['股票代码'].mask((data['股票代码'].str[:2] == '00') | (data['股票代码'].str[:2] == '30'), '0'+data['股票代码'])
+            print(data)
+            """sep	默认字符‘,’	输出文件的字段分隔符"""
+            data.to_csv(gl_v.ax_tdx+'\COMBINE.blk', index=None, sep='\t', mode='w', header = None)
+
     def calculate_save(self, code, conn, data_s):  # 保存
         cur = conn.cursor()
         """加列 REAL"""
@@ -60,6 +112,7 @@ class Stock(object):
         # print(sql_s)
         data_s = data_s[['股本', '股本增比', '日期']]
         cur.executemany(sql_s, data_s.values)
+        cur.close()
 
     @gl_v.time_show  # 循环银行码
     def for_code(self):
@@ -90,8 +143,11 @@ class Stock(object):
             print(i)
             self.calculate_equity(gl_v.add_sh(i, f='01'), save='y')  #
 
-# stock = Stock()
+stock = Stock()
 # stock.for_code()
+stock.history_volatility('df601398hfq','sh601398my')   # 历史波动率df601398hfq
+# stock.stock_yj_yg_em_yz_code('east_yj_yg')   # 获取业绩预增代码去获得其行情数据
 
 
 
+ 

@@ -1,0 +1,15 @@
+yarn安装一定要在nodejs目录下,否则要设置环境变量？
+
+warning "@quasar/app-vite > rollup-plugin-visualizer@5.8.0" has unmet peer dependency "rollup@^2.0.0".
+warning " > autoprefixer@10.4.8" has unmet peer dependency "postcss@^8.1.0".
+
+怎么解决 UNMET PEER DEPENDENCY ？
+peerDependencies尽管指定了使用某些插件时，必须要安装的包的版本。但在不影响开发的情况下，
+UNMET PEER DEPENDENCY一般是可以无视的，因为现存的很多UNMET PEER DEPENDENCY错误，都将已安装的包版本指向了一个较低的版本。
+或者这么说，开发者已经很久没对peerDependencies这个字段进行更新了，像我们在描述间接依赖的时候，
+A包可能在peerDependencies这个字段里面，制定我们的lodash必须安装^2.2.0版本，可我们项目全局早就有一个4.17.20的船新版本了。
+1、根据我在google上搜索的一些解决方法，最简单的方法是在系统全局安装缺失的依赖（不需要指定版本），
+参考这个StackOverflow：https://stackoverflow.com/questions/35419179/unmet-peer-dependency-generator-karma-0-9-0
+也就是把npm ERR这个错误报出来的所有包，一行全局安装。缺点是，只能解决其中一个子依赖抛出的peerDependencies。
+假如还有很多子依赖，用到了更低的版本，那就用下面这种吧。
+2、另一种方法是对每个npm ERR报出的包，进入到node_modules中对应包的目录中，进行单独的安装，并指定版本（想想就麻烦）。
