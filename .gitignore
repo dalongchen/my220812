@@ -1,6 +1,6 @@
-.idea
-.git
+*.idea
+*.git
 __pycache__
 __init__
-db.sqlite3
-.db
+*.sqlite3
+*.db

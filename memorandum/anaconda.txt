@@ -1,9 +1,9 @@
 注意先激活p36环境，不激活base环境也可以安装在base中，原因可能是系统中只有base安装了pip和conda
 其他Python版本中没有。
-pip install django-cors-headers -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install setuptools==57.5.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 采用conda 安装python包时，可以使用以下命令：
-conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/linux-64 django-cors-headers
+conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/linux-64 demjson
 其中参数-c指定了镜像源的通道
-貌似没有用conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/linux-64 Django
-
+pip uninstall demjson
+pip install setuptools==57.5.0
