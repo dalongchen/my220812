@@ -1,5 +1,6 @@
 import pandas as pd
 from . import tool_db
+from time import time
 
 
 def stockk0(inp):  # 不复权
@@ -71,3 +72,12 @@ def add_sh(code, big=""):  # big="baostock"加(sh. or sz.)code加(sh or sz) or (
         else:
             print("err3", code)
     return code
+
+def time_show(func):
+    def new_func(*arg, **kw):
+        t1 = time()
+        res = func(*arg, **kw)
+        t2 = time()
+        print(f"{func.__name__: >10} : {t2-t1:.6f} sec")  # 前加f表示字符串内支持大括号内的python表达式
+        return res
+    return new_func

@@ -1,10 +1,13 @@
+from dis import code_info
 from django.http import HttpResponse, JsonResponse
 from .mytool import tool_db,tools,tool_east
 import pandas as pd
+import time
 
 
 def index(request):
-    sql ="""SELECT * FROM polls_east_yj_yg as p WHERE
+    sql ="""SELECT 股票代码,股票简称,预测指标,业绩变动,预测数值,业绩变动幅度 as 幅度,
+    业绩变动原因,预告类型 as 类型,上年同期值,公告日期 FROM polls_east_yj_yg as p WHERE
     p."预告类型" = '预增' AND
     p."业绩变动" LIKE '%2020年1-6%' AND
     p."股票代码" NOT LIKE '688%' AND
@@ -19,22 +22,13 @@ def index(request):
     p."股票代码"
     """
     conn,cur=tool_db.get_conn_cur()
-    d = cur.execute(sql).fetchall()
-    cu_desc = cur.description
+    df = pd.read_sql(sql, conn )
     col = []
-    for i,t in enumerate(cu_desc):
-        tt = t[0]
-        if tt=='业绩变动幅度':
-            tt='幅度'
-        if tt=='预告类型':
-            tt='类型'
-        col.append({ 'name': i, 'align': 'left', 'label': tt, 'field': i, 'sortable': True, 
+    for i,t in enumerate(df.columns):
+        col.append({ 'name': i, 'align': 'left', 'label': t, 'field': i, 'sortable': True, 
         'style': 'padding: 0px 0px', 'headerStyle':'padding: 0px 0px' })
-
-    dict1 = [dict(zip(list(range(len(d[0]))),list(ii))) for ii in d]
     conn.close()
-    return JsonResponse({'col': col, 'da':dict1})
-
+    return JsonResponse({'col': col, 'da':df.values.tolist()})
 
 def detail(request, question_id):
     if request.method=='GET':
@@ -57,7 +51,7 @@ def results(request, question_id):
     try:
         dat2 = pd.read_sql(sql, conn )
     except Exception as e:
-        print(e)
+        # print(e)
         if 'no such table' in str(e):
             tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
             dat2 = pd.read_sql(sql, conn )
@@ -78,7 +72,7 @@ def results(request, question_id):
 	"公告日期"	
     )"""
     
-    sql_yj_yg = r"""select * from polls_east_yj_yg where 股票代码 = '{}' GROUP BY 公告日期""".format(inp)
+    sql_yj_yg = r"""select * from polls_east_yj_yg where 预告类型='预增' and 股票代码 = '{}' GROUP BY 公告日期""".format(inp)
     dat_yj_yg = pd.read_sql(sql_yj_yg,conn)
     if dat_yj_yg['最高价'].isnull().sum()>0:
         print('业绩预告无数据')
@@ -114,6 +108,8 @@ def results(request, question_id):
         cur.executemany(sql_s, data_s.values)
         # print(cur.rowcount)
         conn.commit()
+        dat_yj_yg = pd.read_sql(sql_yj_yg,conn)
+
     conn.close()
     dat_yj_yg = dat_yj_yg[['显示日期', '最高价', '公告日期','预告类型','预测数值','业绩变动','业绩变动原因']]
     # add_col_sql="""alter table polls_east_yj_yg add 最高价 INTEGER"""
@@ -121,6 +117,44 @@ def results(request, question_id):
     # print(dat_yj_yg)
     return JsonResponse({'dat':dat3,'dat_yj_yg':dat_yj_yg.values.tolist()})
 
-
+@tools.time_show
 def vote(request, question_id):
+    sql ="""SELECT 股票代码,公告日期 FROM polls_east_yj_yg as p WHERE
+    p."预告类型" = '预增' AND
+    p."业绩变动" LIKE '%2020年1-6%' AND
+    p."股票代码" NOT LIKE '688%' AND
+    p."股票代码" NOT LIKE '900%' AND
+    p."股票代码" NOT LIKE '83%' AND
+    p."股票代码" NOT LIKE '200%' AND
+    p."业绩变动原因" IS NOT NULL AND
+    p."预测指标" NOT LIKE '%营业收入%' AND
+    p."上年同期值" IS NOT NULL
+    GROUP BY
+    p."公告日期",
+    p."股票代码"
+    """
+    conn,cur=tool_db.get_conn_cur()
+    df = pd.read_sql(sql, conn )
+    ii=0
+    sql_high = r"""select date,open,close,high,low from '{}' where date>='{}' LIMIT 1"""
+    for i,t in df.head(20).iterrows():
+        # print(i,t['股票代码'])
+        inp2 = tools.add_sh(t['股票代码'], big='east.')
+        try:
+            dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期']), conn )
+        except Exception as e:
+            # print(e)
+            if 'no such table' in str(e):
+                print('new table',inp2)
+                tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
+                time.sleep(1.3)
+                dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期']), conn )
+            else:
+                raise e
+        upchange = (dat2['close']-dat2['open'])/dat2['open']
+        print(round(upchange[0],4))
+        if upchange[0]>0.005:
+            ii+=1
+    print(ii,ii/df.shape[0])
+    conn.close()
     return HttpResponse("You're voting on question %s." % question_id)
