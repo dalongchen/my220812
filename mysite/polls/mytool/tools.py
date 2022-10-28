@@ -33,15 +33,6 @@ def stockk0(inp):  # 不复权
     dat3 = {'categoryData': dat2.日期.values.tolist(),'values':dat1_pre.tolist(), 'volumes':dat1_.iloc[:,4:].values.tolist()}
     return dat3
 
-def stockk2(dat2):  # 后复权
-    # inp = add_sh(inp,big='east.')
-    dat1_ = dat2.iloc[:,1:]
-    dat1_pre = dat1_.values  # 未改变前的值
-    dat1_.insert(4,'i',dat1_.index.tolist()) 
-    dat1_['max'] = dat1_.apply(lambda x: 1 if x['close'] > x['open'] else -1, axis=1)
-    dat3 = {'categoryData': dat2.date.values.tolist(),'values':dat1_pre.tolist(), 'volumes':dat1_.iloc[:,4:].values.tolist()}
-    return dat3
-
 def add_sh(code, big=""):  # big="baostock"加(sh. or sz.)code加(sh or sz) or (SZ or SH)
     if big == "":
         if code.startswith("0") or code.startswith("3") or code.startswith("2"):
