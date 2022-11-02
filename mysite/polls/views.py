@@ -41,30 +41,29 @@ def detail(request, question_id):
         conn.close()
     return JsonResponse({'dat':dat})
 
-def results(request, question_id):
+@tools.time_show
+def results(request, question_id):  # k线图和预增提示
     inp=request.GET.get('inp',default='110')
     inp2 = tools.add_sh(inp, big='east.')
     print(question_id, inp2)  
     conn,cur=tool_db.get_conn_cur()
     """'date', 'open', 'close', 'high', 'low', 'volume', 'amount', 'amplitude', 'up_change', 
     'num_change', 'turnover'"""
-    sql = r"""select date,close,open,low,high,volume from '{}' where volume != 0""".format('east'+inp2+'_2')
+    sql = r"""select * from '{}' where volume != 0""".format('east'+inp2+'_2')
     try:
         dat2 = pd.read_sql(sql, conn )
     except Exception as e:
         # print(e)
         if 'no such table' in str(e):
+            print(inp2,'没有后复权表数据,正下载east')
             tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
             dat2 = pd.read_sql(sql, conn )
+            time.sleep(1.3)
         else:
             raise e
-    # dat3 = tools.stockk2(dat2)   # 后复权
-    dat1_ = dat2.iloc[:,1:]
-    dat1_pre = dat1_.values  # 未改变前的值
-    dat1_.insert(4,'i',dat1_.index.tolist()) 
-    dat1_['max'] = dat1_.apply(lambda x: 1 if x['close'] > x['open'] else -1, axis=1)
+    dat2.insert(4,'i',dat2.index.tolist()) 
+    dat2['max'] = dat2.apply(lambda x: 1 if x['close'] > x['open'] else -1, axis=1)
     
-
     """CREATE TABLE "polls_east_yj_yg" (
 	"股票代码"	,
 	"股票简称"	,
@@ -82,49 +81,35 @@ def results(request, question_id):
     dat_yj_yg = pd.read_sql(sql_yj_yg,conn)
     if dat_yj_yg['最高价'].isnull().sum()>0:
         print('业绩预告无数据')
-        # import datetime as dt
         sql_high = r"""select date,high from '{}' where date='{}'"""
         def datacheck(data):
             dat_high = pd.read_sql(sql_high.format('east'+inp2+'_2',data), conn )
             if not dat_high.empty:
-                # return dat_high
                 return dat_high.values[0]
             else:
                 sql_high2 = r"""select date,high from '{}' where date>'{}'"""
                 dat_high = pd.read_sql(sql_high2.format('east'+inp2+'_2',data), conn )
                 if not dat_high.empty:
-                    # return dat_high.head(1)
                     return dat_high.head(1).values[0]
                 else:
                     raise
                     return  ['','']
-                    # return  pd.DataFrame({'date':[],'high':[]})
-        #     # day = dt.datetime.strptime(data,'%Y-%m-%d') +dt.timedelta(days=i)
-        #     day = pd.to_datetime(data) + dt.timedelta(days=i)
-        #     print(day.strftime("%Y-%m-%d"))
         dd=dat_yj_yg['公告日期'].apply(datacheck)
-        # print(list(dd))
         dat_yj_yg[['显示日期','最高价']]=list(dd)
         dat_yj_yg[['code']]=inp
-        # print(dat_yj_yg[['显示日期','最高价']])
         sql_s = r"UPDATE polls_east_yj_yg SET 显示日期=(?),最高价=(?) where  公告日期=(?) and 股票代码=(?)"
-        # print(sql_s)
         data_s = dat_yj_yg[['显示日期', '最高价', '公告日期','code']]
-        # print(data_s.values)
         cur.executemany(sql_s, data_s.values)
-        # print(cur.rowcount)
         conn.commit()
         dat_yj_yg = pd.read_sql(sql_yj_yg,conn)
 
     conn.close()
     dat_yj_yg = dat_yj_yg[['显示日期', '最高价', '公告日期','预告类型','预测数值','业绩变动','业绩变动原因']]
-    # add_col_sql="""alter table polls_east_yj_yg add 最高价 INTEGER"""
-    # tools.conn_db_table_update(sql=add_col_sql)
     
     return JsonResponse({
         'categoryData': dat2.date.values.tolist(),
-        'values':dat1_pre.tolist(),
-        'volumes':dat1_.iloc[:,4:].values.tolist(),
+        'values':dat2[['close', 'open',  'high', 'low', 'volume','amount', 'amplitude', 'up_change', 'num_change', 'turnover']].values.tolist(),
+        'volumes':dat2[['i','volume','max']].values.tolist(),
         'dat_yj_yg':dat_yj_yg.values.tolist()
     })
 
@@ -147,19 +132,26 @@ def vote(request, question_id):
     """
     conn,cur=tool_db.get_conn_cur()
     df = pd.read_sql(sql, conn )
-    df = df.head(20)
+    # df = df.head(20)
 
-    save=''
-    if save == "y":  # 是否保存
-        conn,cur=tool_db.get_conn_cur()
-        df.to_sql('east_pre_add_temporary', con=conn, if_exists='replace', index=False)
+    # save=''
+    # if save == "y":  # 是否保存
+    #     conn,cur=tool_db.get_conn_cur()
+    #     df.to_sql('east_pre_add_temporary', con=conn, if_exists='replace', index=False)
 
     df_no = df.copy(deep=True)  # 前一季度没有
     df_have = df.copy(deep=True)  # 前一季度有
 
-    ii=0
+    len=30
+    # len=3
+    num = 0  # 大于0.01的数量
+    num2 = 0  # 小于-0.3的数量
+    up1=0.1 # 幅度
+    up2=-0.1 # 幅度
+    result = [0 for i in range(0,len)]  # 定义一个初值为0的数组
+    # print(result)
     # 获取股价sql
-    sql_high = r"""select date,open,close,high,low from '{}' where date>='{}' LIMIT 1"""
+    sql_high = r"""select date,open,close,high,low from '{}' where date>='{}' LIMIT {}"""
     # 获取前一季度也预告的股票sql
     sql_continuity ="""SELECT * FROM polls_east_yj_yg as p WHERE
     p."股票代码" = '{}' AND
@@ -170,34 +162,46 @@ def vote(request, question_id):
     """
     for i,t in df.iterrows():
         dat2 = pd.read_sql(sql_continuity.format(t['股票代码']), conn )
-        if dat2.shape[0]!=0:
-            df_no.drop([i],inplace=True)
-        else:
-            df_have.drop([i],inplace=True)
+        if dat2.shape[0]!=0:  # 不等于0,说明前面季度有预增
+            df_no.drop([i],inplace=True)  # 删除有预增的,剩没有预增的
+        else:   # 等于0,说明前面季度没有预增
+            df_have.drop([i],inplace=True)  # 删除没有预增的,剩有预增的
 
-            # 计算股价胜率
+            # 获取没有预增的的code,计算股价胜率
             inp2 = tools.add_sh(t['股票代码'], big='east.')
             try:
-                dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期']), conn )
+                dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'], len), conn )
             except Exception as e:
                 # print(e)
                 if 'no such table' in str(e):
-                    print('new table',inp2)
+                    print(inp2,'没有后复权表数据,正下载east')
                     tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
                     time.sleep(1.3)
-                    dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期']), conn )
+                    dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
                 else:
                     raise e
-            upchange = (dat2['close']-dat2['open'])/dat2['open']
-            # print(round(upchange[0],4))
-            if upchange[0]>0.005:
-                ii+=1
-    conn.close()
+            
+            dat20_open=dat2.loc[0]['open'] 
+            # for ind, row in dat2.iterrows():
+            #     if ((row['close']-dat20_open)/dat20_open) >0.005:
+            #         result[ind]+=1
 
-    print(ii,'胜率:',ii/df.shape[0])
-        
-    print(df_no)
-    print(df_have)
+            for ind, row in dat2.iterrows():
+                up_=(row['close']-dat20_open)/dat20_open
+                if up_ >up1:
+                    num+=1
+                    break
+                if up_ <up2:
+                    num2+=1
+                    break
+    conn.close()
+    # for iii,a in enumerate(result):
+    #     print(a,str(iii)+'天胜率:',a/df_no.shape[0])
+
+    print(num,'{}内天至少有一天大于{}的概率:'.format(len,up1),num/df_no.shape[0])
+    print(num2,'{}内天小于{}的概率:'.format(len,up2),num2/df_no.shape[0])
+    print('没连续:',df_no.shape)
+    print('有连续:',df_have.shape)
 
     col = []
     for i,t in enumerate(df_no.columns):
