@@ -43,7 +43,7 @@ def detail(request, question_id):
 
 @tools.time_show
 def results(request, question_id):  # k线图和预增提示
-    inp=request.GET.get('inp',default='110')
+    inp=request.GET.get('inp',default='11')
     inp2 = tools.add_sh(inp, big='east.')
     print(question_id, inp2)  
     conn,cur=tool_db.get_conn_cur()
@@ -115,39 +115,40 @@ def results(request, question_id):  # k线图和预增提示
 
 @tools.time_show
 def vote(request, question_id):
+    quarter=request.GET.get('quarter',default='11').split(',')
+    day_num=int(request.GET.get('day_num',default='11'))
+    up_num=int(request.GET.get('up_num',default='11'))
+    down_num=int(request.GET.get('down_num',default='11'))
+    print(question_id, quarter, day_num,up_num, down_num) 
+    yj_change=quarter[1]
+    yj_change2=quarter[0]
     sql ="""SELECT 股票代码,股票简称,预测指标,业绩变动,预测数值,业绩变动幅度 as 幅度,
     业绩变动原因,预告类型 as 类型,上年同期值,公告日期  FROM polls_east_yj_yg as p WHERE
     p."预告类型" = '预增' AND
-    p."业绩变动" LIKE '%2020年1-6%' AND
+    p."业绩变动" LIKE '%{}%' AND
     p."股票代码" NOT LIKE '688%' AND
     p."股票代码" NOT LIKE '900%' AND
-    p."股票代码" NOT LIKE '83%' AND
+    p."股票代码" NOT LIKE '8%' AND
     p."股票代码" NOT LIKE '200%' AND
+    p."股票代码" NOT LIKE '4%' AND
+    p."股票代码" NOT LIKE '001235' AND
     p."业绩变动原因" IS NOT NULL AND
     p."预测指标" NOT LIKE '%营业收入%' AND
     p."上年同期值" IS NOT NULL
     GROUP BY
     p."公告日期",
     p."股票代码"
-    """
+    """.format(yj_change)
     conn,cur=tool_db.get_conn_cur()
     df = pd.read_sql(sql, conn )
-    # df = df.head(20)
-
-    # save=''
-    # if save == "y":  # 是否保存
-    #     conn,cur=tool_db.get_conn_cur()
-    #     df.to_sql('east_pre_add_temporary', con=conn, if_exists='replace', index=False)
-
     df_no = df.copy(deep=True)  # 前一季度没有
     df_have = df.copy(deep=True)  # 前一季度有
 
-    len=30
-    # len=3
+    len=day_num
+    up1=up_num/100 # 幅度
+    up2=down_num/100 # 幅度
     num = 0  # 大于0.01的数量
     num2 = 0  # 小于-0.3的数量
-    up1=0.1 # 幅度
-    up2=-0.1 # 幅度
     result = [0 for i in range(0,len)]  # 定义一个初值为0的数组
     # print(result)
     # 获取股价sql
@@ -155,13 +156,13 @@ def vote(request, question_id):
     # 获取前一季度也预告的股票sql
     sql_continuity ="""SELECT * FROM polls_east_yj_yg as p WHERE
     p."股票代码" = '{}' AND
-    p."业绩变动" LIKE '%2020年1-3%' and (
+    p."业绩变动" LIKE '%{}%' and (
     p."预告类型" LIKE '预增' or
     p."预告类型" LIKE '略增' or
     p."预告类型" LIKE '扭亏' )
     """
     for i,t in df.iterrows():
-        dat2 = pd.read_sql(sql_continuity.format(t['股票代码']), conn )
+        dat2 = pd.read_sql(sql_continuity.format(t['股票代码'],yj_change2), conn )
         if dat2.shape[0]!=0:  # 不等于0,说明前面季度有预增
             df_no.drop([i],inplace=True)  # 删除有预增的,剩没有预增的
         else:   # 等于0,说明前面季度没有预增
@@ -171,12 +172,20 @@ def vote(request, question_id):
             inp2 = tools.add_sh(t['股票代码'], big='east.')
             try:
                 dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'], len), conn )
+                # print(dat2.shape,dat2.shape[0]<len)
+                if dat2.shape[0]<len:
+                    print(inp2,'表数据不足{},正下载east'.format(len))
+                    tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
+                    time.sleep(1.35)
+                    dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
+                    if dat2.shape[0]<len:
+                        print(inp2,'表数据不足{},新股?'.format(len))
+
             except Exception as e:
-                # print(e)
                 if 'no such table' in str(e):
                     print(inp2,'没有后复权表数据,正下载east')
                     tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
-                    time.sleep(1.3)
+                    time.sleep(1.35)
                     dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
                 else:
                     raise e
@@ -207,6 +216,10 @@ def vote(request, question_id):
     for i,t in enumerate(df_no.columns):
         col.append({ 'name': i, 'align': 'left', 'label': t, 'field': i, 'sortable': True, 
         'style': 'padding: 0px 0px', 'headerStyle':'padding: 0px 0px' })
-    return JsonResponse({'col': col, 'da':df_no.values.tolist(),'code2':df_no['股票代码'].values.tolist()})
-    # return JsonResponse({'col': col, 'da':df_have.values.tolist(),'code2':df_have['股票代码'].values.tolist()})
+    return JsonResponse({
+        'col': col, 
+        'da':df_no.values.tolist(),
+        'code2':df_no['股票代码'].values.tolist(),
+        'name2':df_no['股票简称'].values.tolist()
+    })
     # return HttpResponse("You're voting on question %s." % question_id)
