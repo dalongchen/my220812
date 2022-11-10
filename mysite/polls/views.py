@@ -140,7 +140,7 @@ def vote(request, question_id):
     p."股票代码"
     """.format(yj_change)
     conn,cur=tool_db.get_conn_cur()
-    df = pd.read_sql(sql, conn )
+    df = pd.read_sql(sql, conn)
     df_no = df.copy(deep=True)  # 前一季度没有
     df_have = df.copy(deep=True)  # 前一季度有
 
@@ -153,6 +153,20 @@ def vote(request, question_id):
     # print(result)
     # 获取股价sql
     sql_high = r"""select date,open,close,high,low from '{}' where date>='{}' LIMIT {}"""
+    sql_high_china = r"""select 日期,开盘,收盘,最高,最低 from '{}' where 日期>='{}' LIMIT {}"""
+    """CREATE TABLE "中广天择603721hfq" (
+    "日期" TEXT,
+    "开盘" REAL,
+    "收盘" REAL,
+    "最高" REAL,
+    "最低" REAL,
+    "成交量" INTEGER,
+    "成交额" REAL,
+    "振幅" REAL,
+    "涨跌幅" REAL,
+    "涨跌额" REAL,
+    "换手率" REAL
+    )"""
     # 获取前一季度也预告的股票sql
     sql_continuity ="""SELECT * FROM polls_east_yj_yg as p WHERE
     p."股票代码" = '{}' AND
@@ -172,31 +186,41 @@ def vote(request, question_id):
             inp2 = tools.add_sh(t['股票代码'], big='east.')
             try:
                 dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'], len), conn )
+                open2='open'
+                close2='close'
                 # print(dat2.shape,dat2.shape[0]<len)
                 if dat2.shape[0]<len:
-                    print(inp2,'表数据不足{},正下载east'.format(len))
-                    tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
-                    time.sleep(1.35)
-                    dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
-                    if dat2.shape[0]<len:
-                        print(inp2,'表数据不足{},新股?'.format(len))
+                    print(inp2,'表数据不足{}'.format(len))
+                    # tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
+                    # time.sleep(1.35)
+                    # dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
+                    # if dat2.shape[0]<len:
+                    #     print(inp2,'表数据不足{},新股?'.format(len))
 
             except Exception as e:
                 if 'no such table' in str(e):
-                    print(inp2,'没有后复权表数据,正下载east')
-                    tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
-                    time.sleep(1.35)
-                    dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
+                    try:
+                        dat2 = pd.read_sql(sql_high_china.format(t['股票简称']+t['股票代码']+'hfq',t['公告日期'],len), conn )
+                    except Exception as e2:
+                        if 'no such table' in str(e2):
+                            print(t['股票简称'],t['股票代码'],'没有后复权表数据,正下载east')
+                            tool_east.history_k_single(t['股票简称'],t['股票代码'],conn, save='y',end_date='20221109')  # fq=1前，=2后复权
+                            time.sleep(1.35)
+                            dat2 = pd.read_sql(sql_high_china.format(t['股票简称']+t['股票代码']+'hfq',t['公告日期'],len), conn )
+                        else:
+                            raise e2
+                    open2='开盘'
+                    close2='收盘'
                 else:
                     raise e
             
-            dat20_open=dat2.loc[0]['open'] 
+            dat20_open=dat2.loc[0][open2] 
             # for ind, row in dat2.iterrows():
             #     if ((row['close']-dat20_open)/dat20_open) >0.005:
             #         result[ind]+=1
 
             for ind, row in dat2.iterrows():
-                up_=(row['close']-dat20_open)/dat20_open
+                up_=(row[close2]-dat20_open)/dat20_open
                 if up_ >up1:
                     num+=1
                     break
@@ -209,8 +233,7 @@ def vote(request, question_id):
 
     print(num,'{}内天至少有一天大于{}的概率:'.format(len,up1),num/df_no.shape[0])
     print(num2,'{}内天小于{}的概率:'.format(len,up2),num2/df_no.shape[0])
-    print('没连续:',df_no.shape)
-    print('有连续:',df_have.shape)
+    print('没连续:',df_no.shape,'有连续:',df_have.shape)
 
     col = []
     for i,t in enumerate(df_no.columns):
