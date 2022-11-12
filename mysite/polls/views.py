@@ -115,125 +115,138 @@ def results(request, question_id):  # k线图和预增提示
 
 @tools.time_show
 def vote(request, question_id):
-    quarter=request.GET.get('quarter',default='11').split(',')
-    day_num=int(request.GET.get('day_num',default='11'))
+    import json
+    quarter=request.GET.get('quarter',default='11')
+    quarter = json.loads(quarter).get('_value')
+    print(quarter)
+    # breakpoint()
+    # quarter=request.GET.get('quarter',default='11')rr
+    len=int(request.GET.get('day_num',default='11'))
     up_num=int(request.GET.get('up_num',default='11'))
     down_num=int(request.GET.get('down_num',default='11'))
-    print(question_id, quarter, day_num,up_num, down_num) 
-    yj_change=quarter[1]
-    yj_change2=quarter[0]
-    sql ="""SELECT 股票代码,股票简称,预测指标,业绩变动,预测数值,业绩变动幅度 as 幅度,
-    业绩变动原因,预告类型 as 类型,上年同期值,公告日期  FROM polls_east_yj_yg as p WHERE
-    p."预告类型" = '预增' AND
-    p."业绩变动" LIKE '%{}%' AND
-    p."股票代码" NOT LIKE '688%' AND
-    p."股票代码" NOT LIKE '900%' AND
-    p."股票代码" NOT LIKE '8%' AND
-    p."股票代码" NOT LIKE '200%' AND
-    p."股票代码" NOT LIKE '4%' AND
-    p."股票代码" NOT LIKE '001235' AND
-    p."业绩变动原因" IS NOT NULL AND
-    p."预测指标" NOT LIKE '%营业收入%' AND
-    p."上年同期值" IS NOT NULL
-    GROUP BY
-    p."公告日期",
-    p."股票代码"
-    """.format(yj_change)
-    conn,cur=tool_db.get_conn_cur()
-    df = pd.read_sql(sql, conn)
-    df_no = df.copy(deep=True)  # 前一季度没有
-    df_have = df.copy(deep=True)  # 前一季度有
+    print(question_id, quarter, len,up_num, down_num) 
+    num_total = 0  # 大于0.15的数量
+    num2_total = 0  # 小于-0.3的数量
+    df_no_total=pd.DataFrame()
+    df_have_total=pd.DataFrame()
+    for iii in quarter:
+        print(iii.split(','),'=======================')
+        iii=iii.split(',')
+        yj_change=iii[1]
+        yj_change2=iii[0]
+        sql ="""SELECT 股票代码,股票简称,预测指标,业绩变动,预测数值,业绩变动幅度 as 幅度,
+        业绩变动原因,预告类型 as 类型,上年同期值,公告日期  FROM polls_east_yj_yg as p WHERE
+        p."预告类型" = '预增' AND
+        p."业绩变动" LIKE '%{}%' AND
+        p."股票代码" NOT LIKE '688%' AND
+        p."股票代码" NOT LIKE '900%' AND
+        p."股票代码" NOT LIKE '8%' AND
+        p."股票代码" NOT LIKE '200%' AND
+        p."股票代码" NOT LIKE '4%' AND
+        p."股票代码" NOT LIKE '001235' AND
+        p."业绩变动原因" IS NOT NULL AND
+        p."预测指标" NOT LIKE '%营业收入%' AND
+        p."上年同期值" IS NOT NULL
+        GROUP BY
+        p."公告日期",
+        p."股票代码"
+        """.format(yj_change)
+        conn,cur=tool_db.get_conn_cur()
+        df = pd.read_sql(sql, conn)
+        df_no = df.copy(deep=True)  # 前一季度没有
+        df_have = df.copy(deep=True)  # 前一季度有
 
-    len=day_num
-    up1=up_num/100 # 幅度
-    up2=down_num/100 # 幅度
-    num = 0  # 大于0.01的数量
-    num2 = 0  # 小于-0.3的数量
-    result = [0 for i in range(0,len)]  # 定义一个初值为0的数组
-    # print(result)
-    # 获取股价sql
-    sql_high = r"""select date,open,close,high,low from '{}' where date>='{}' LIMIT {}"""
-    sql_high_china = r"""select 日期,开盘,收盘,最高,最低 from '{}' where 日期>='{}' LIMIT {}"""
-    """CREATE TABLE "中广天择603721hfq" (
-    "日期" TEXT,
-    "开盘" REAL,
-    "收盘" REAL,
-    "最高" REAL,
-    "最低" REAL,
-    "成交量" INTEGER,
-    "成交额" REAL,
-    "振幅" REAL,
-    "涨跌幅" REAL,
-    "涨跌额" REAL,
-    "换手率" REAL
-    )"""
-    # 获取前一季度也预告的股票sql
-    sql_continuity ="""SELECT * FROM polls_east_yj_yg as p WHERE
-    p."股票代码" = '{}' AND
-    p."业绩变动" LIKE '%{}%' and (
-    p."预告类型" LIKE '预增' or
-    p."预告类型" LIKE '略增' or
-    p."预告类型" LIKE '扭亏' )
-    """
-    for i,t in df.iterrows():
-        dat2 = pd.read_sql(sql_continuity.format(t['股票代码'],yj_change2), conn )
-        if dat2.shape[0]!=0:  # 不等于0,说明前面季度有预增
-            df_no.drop([i],inplace=True)  # 删除有预增的,剩没有预增的
-        else:   # 等于0,说明前面季度没有预增
-            df_have.drop([i],inplace=True)  # 删除没有预增的,剩有预增的
+        # len=day_num
+        up1=up_num/100 # 幅度
+        up2=down_num/100 # 幅度
+        num = 0  # 大于0.15的数量
+        num2 = 0  # 小于-0.3的数量
+        result = [0 for i in range(0,len)]  # 定义一个初值为0的数组
+        # print(result)
+        # 获取股价sql
+        sql_high = r"""select date,open,close,high,low from '{}' where date>='{}' LIMIT {}"""
+        sql_high_china = r"""select 日期,开盘,收盘,最高,最低 from '{}' where 日期>='{}' LIMIT {}"""
+        """CREATE TABLE "中广天择603721hfq" (
+        "日期" TEXT,
+        "开盘" REAL,
+        "收盘" REAL,
+        "最高" REAL,
+        "最低" REAL,
+        "成交量" INTEGER,
+        "成交额" REAL,
+        "振幅" REAL,
+        "涨跌幅" REAL,
+        "涨跌额" REAL,
+        "换手率" REAL
+        )"""
+        # 获取前一季度也预告的股票sql
+        sql_continuity ="""SELECT * FROM polls_east_yj_yg as p WHERE
+        p."股票代码" = '{}' AND
+        p."业绩变动" LIKE '%{}%' and (
+        p."预告类型" LIKE '预增' or
+        p."预告类型" LIKE '略增' or
+        p."预告类型" LIKE '扭亏' )
+        """
+        for i,t in df.iterrows():
+            dat2 = pd.read_sql(sql_continuity.format(t['股票代码'],yj_change2), conn )
+            if dat2.shape[0]!=0:  # 不等于0,说明前面季度有预增
+                df_no.drop([i],inplace=True)  # 删除有预增的,剩没有预增的
+            else:   # 等于0,说明前面季度没有预增
+                df_have.drop([i],inplace=True)  # 删除没有预增的,剩有预增的
 
-            # 获取没有预增的的code,计算股价胜率
-            inp2 = tools.add_sh(t['股票代码'], big='east.')
-            try:
-                dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'], len), conn )
-                open2='open'
-                close2='close'
-                # print(dat2.shape,dat2.shape[0]<len)
-                if dat2.shape[0]<len:
-                    print(inp2,'表数据不足{}'.format(len))
-                    # tool_east.east_history_k_data(inp2,2,save='y')  # fq=1前，=2后复权
-                    # time.sleep(1.35)
-                    # dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'],len), conn )
-                    # if dat2.shape[0]<len:
-                    #     print(inp2,'表数据不足{},新股?'.format(len))
+                # 获取没有预增的的code,计算股价胜率
+                inp2 = tools.add_sh(t['股票代码'], big='east.')
+                try:
+                    dat2 = pd.read_sql(sql_high.format('east'+inp2+'_2',t['公告日期'], len), conn )
+                    open2='open'
+                    close2='close'
+                    if dat2.shape[0]<len:
+                        print(inp2,'表数据不足{}'.format(len))
 
-            except Exception as e:
-                if 'no such table' in str(e):
-                    try:
-                        dat2 = pd.read_sql(sql_high_china.format(t['股票简称']+t['股票代码']+'hfq',t['公告日期'],len), conn )
-                    except Exception as e2:
-                        if 'no such table' in str(e2):
-                            print(t['股票简称'],t['股票代码'],'没有后复权表数据,正下载east')
-                            tool_east.history_k_single(t['股票简称'],t['股票代码'],conn, save='y',end_date='20221109')  # fq=1前，=2后复权
-                            time.sleep(1.35)
+                except Exception as e:
+                    if 'no such table' in str(e):
+                        try:
                             dat2 = pd.read_sql(sql_high_china.format(t['股票简称']+t['股票代码']+'hfq',t['公告日期'],len), conn )
-                        else:
-                            raise e2
-                    open2='开盘'
-                    close2='收盘'
-                else:
-                    raise e
-            
-            dat20_open=dat2.loc[0][open2] 
-            # for ind, row in dat2.iterrows():
-            #     if ((row['close']-dat20_open)/dat20_open) >0.005:
-            #         result[ind]+=1
+                        except Exception as e2:
+                            if 'no such table' in str(e2):
+                                print(t['股票简称'],t['股票代码'],'没有后复权表数据,正下载east')
+                                tool_east.history_k_single(t['股票简称'],t['股票代码'],conn, save='y',end_date='20221109')  # fq=1前，=2后复权
+                                time.sleep(1.35)
+                                dat2 = pd.read_sql(sql_high_china.format(t['股票简称']+t['股票代码']+'hfq',t['公告日期'],len), conn )
+                            else:
+                                raise e2
+                        open2='开盘'
+                        close2='收盘'
+                    else:
+                        raise e
+                
+                dat20_open=dat2.loc[0][open2] 
+                # for ind, row in dat2.iterrows():
+                #     if ((row['close']-dat20_open)/dat20_open) >0.005:
+                #         result[ind]+=1
 
-            for ind, row in dat2.iterrows():
-                up_=(row[close2]-dat20_open)/dat20_open
-                if up_ >up1:
-                    num+=1
-                    break
-                if up_ <up2:
-                    num2+=1
-                    break
+                for ind, row in dat2.iterrows():
+                    up_=(row[close2]-dat20_open)/dat20_open
+                    if up_ >up1:
+                        num+=1
+                        break
+                    if up_ <up2:
+                        num2+=1
+                        break
+
+        print(num,'{}内天至少有一天大于{}的概率:'.format(len,up1),num/df_no.shape[0])
+        print(num2,'{}内天小于{}的概率:'.format(len,up2),num2/df_no.shape[0])
+        print('没连续:',df_no.shape,'有连续:',df_have.shape)
+
+        num_total +=num  
+        num2_total +=num2  
+        df_no_total=pd.concat([df_no_total,df_no],axis=0)
+        df_have_total=pd.concat([df_have_total,df_have],axis=0)
     conn.close()
-    # for iii,a in enumerate(result):
-    #     print(a,str(iii)+'天胜率:',a/df_no.shape[0])
-
-    print(num,'{}内天至少有一天大于{}的概率:'.format(len,up1),num/df_no.shape[0])
-    print(num2,'{}内天小于{}的概率:'.format(len,up2),num2/df_no.shape[0])
-    print('没连续:',df_no.shape,'有连续:',df_have.shape)
+    print(num_total,'{}内天至少有一天大于{}的概率:'.format(len,up1),num_total/df_no_total.shape[0])
+    print(num2_total,'{}内天小于{}的概率:'.format(len,up2),num2_total/df_no_total.shape[0])
+    print('没连续total:',df_no_total.shape,'有连续total:',df_have_total.shape)
+    print('money:',num_total*up1-num2_total*up2)
 
     col = []
     for i,t in enumerate(df_no.columns):
@@ -241,8 +254,8 @@ def vote(request, question_id):
         'style': 'padding: 0px 0px', 'headerStyle':'padding: 0px 0px' })
     return JsonResponse({
         'col': col, 
-        'da':df_no.values.tolist(),
-        'code2':df_no['股票代码'].values.tolist(),
-        'name2':df_no['股票简称'].values.tolist()
+        'da':df_no_total.values.tolist(),
+        'code2':df_no_total['股票代码'].values.tolist(),
+        'name2':df_no_total['股票简称'].values.tolist()
     })
     # return HttpResponse("You're voting on question %s." % question_id)
