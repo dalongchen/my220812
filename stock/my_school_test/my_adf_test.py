@@ -12,6 +12,7 @@ def history_test(code2, save=''):  #获取数据并保存数据库
     stock_zh_a_hist_df = ak.stock_zh_a_hist(symbol=code2, period="daily", start_date='', 
     end_date='20221107',adjust="hfq")
     print(stock_zh_a_hist_df)
+    stock_zh_a_hist_df.to_excel("柳药603368.xlsx")
     if save == 'y':
         stock_zh_a_hist_df.to_sql('hfq'+code2, con=conn, if_exists='replace', index=False)
     # time.sleep(1.23)
@@ -166,7 +167,8 @@ def get_ljungbox(tab):  # 白噪声检验-ljungbox检验
         # data = data.iloc[data.shape[0]-122*10:data.shape[0]-122*4]
         # data = data.iloc[data.shape[0]-122*10:data.shape[0]-122*6]  # 中间2年数据检验
         data = data.iloc[data.shape[0]-122*12:data.shape[0]-122*8]
-        print(data.shape)
+        print(data)
+        # data.to_excel("柳药603368的2.1年数据.xlsx")
 
         # ljungbox_result = acorr_ljungbox(data, lags=20)  # 返回统计量和p值，lags为检验的延迟数
         # ljungbox_result = acorr_ljungbox(data,  lags=[1, 2, 3, 6, 12, 24], return_df=True)
@@ -174,7 +176,7 @@ def get_ljungbox(tab):  # 白噪声检验-ljungbox检验
         # ljungbox_result = acorr_ljungbox(data, return_df=True, boxpierce=True, auto_lag=True)  # 返回统计量和p值，lags为检验的延迟数
         print(ljungbox_result)
 
-get_ljungbox(tab='603368')  # 柳药
+# get_ljungbox(tab='603368')  # 柳药
 
 # adf_test(tab='sh.000001')
 # adf_test(tab='603233')  # 大参
