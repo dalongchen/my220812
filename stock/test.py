@@ -257,7 +257,7 @@ def history_k_day_add():
 # stock_financial_analysis_indicator_df()
 
 
-@gl_v.time_show
+@gl_v.time_show  # 业绩报表,年
 def stock_yjbb_em():
     import akshare as ak
     import time
@@ -375,10 +375,10 @@ def new_stock_yjbb_em_20(pd, conn, sql_sg_day, sql_jzcsyl, arr_quater, x_day):
     return df_new20211231
 
 
-stock_yjbb_em_20()
+# stock_yjbb_em_20()
 
 
-@gl_v.time_show
+@gl_v.time_show  # 新股申购日期
 def stock_xgsglb_em():
     import akshare as ak
     conn, cur = gl_v.get_conn_cur()

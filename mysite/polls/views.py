@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from .mytool import tool_db, tools, tool_east
+from .mytool import tool_db, tools, tool_east, tool_akshare
 import pandas as pd
 import time
 import json
@@ -303,29 +303,24 @@ def vote(request, question_id):
 
 
 @tools.time_show
-def stock_yjbb_em(request, question_id):
+def stock_yjbb_em(request):
     quarter = request.GET.get('quarter', default='11')
     quarter = json.loads(quarter).get('_value')
-    print(quarter)
+    # print(quarter)
     # breakpoint()
-    # quarter=request.GET.get('quarter',default='11')rr
     len = int(request.GET.get('day_num', default='11'))
     up_num = int(request.GET.get('up_num', default='11'))
     down_num = int(request.GET.get('down_num', default='11'))
-    print(question_id, quarter, len, up_num, down_num)
-    # for i, t in enumerate(df_no.columns):
-    #     col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
-    #                 'sortable': True, 'style': 'padding: 0px 0px',
-    #                 'headerStyle': 'padding: 0px 0px'})
-    # return JsonResponse({
-    #     'col': col,
-    #     'da': df_up1.values.tolist(),
-    #     'code2': df_up1['股票代码'].values.tolist(),
-    #     'name2': df_up1['股票简称'].values.tolist()
-    # })
-    #     return JsonResponse({
-    #     'col': col,
-    #     'da':df_no_total.values.tolist(),
-    #     'code2':df_no_total['股票代码'].values.tolist(),
-    #     'name2':df_no_total['股票简称'].values.tolist()
-    # })
+    print(quarter, len, up_num, down_num)
+    new_concat = tool_akshare.stock_yjbb_em_20(quarter, len)
+    col = []
+    for i, t in enumerate(new_concat.columns):
+        col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+                    'sortable': True, 'style': 'padding: 0px 0px',
+                    'headerStyle': 'padding: 0px 0px'})
+    return JsonResponse({
+        'col': col,
+        'da': new_concat.values.tolist(),
+        'code2': new_concat['股票代码'].values.tolist(),
+        'name2': new_concat['股票简称'].values.tolist()
+    })
