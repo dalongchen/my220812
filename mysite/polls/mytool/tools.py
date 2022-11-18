@@ -97,3 +97,23 @@ def new_stock_yjbb_em_20_delete(df_new2021, df_new2020):
             df_new_concat.drop(index=[i], inplace=True)
 
     return df_new_concat
+
+
+# add column,循环合并两df中的重复部分-delete
+def add_column_concat_delete(df_new2021, df_new2020):
+    df_new_concat = df_new2021.copy()
+    # print(df_new_concat)
+    for i, t in df_new2021.iterrows():
+        if t['股票代码'] not in df_new2020['股票代码'].values:
+            # print(i, t)
+            df_new_concat.drop(index=[i], inplace=True)
+    # print(df_new_concat)
+    df_ = df_new2020.copy()
+    for i, t in df_new2020.iterrows():
+        if t['股票代码'] not in df_new2021['股票代码'].values:
+            # print(i, t)
+            df_.drop(index=[i], inplace=True)
+    d = pd.to_numeric(df_['总资产收益率'], errors='coerce')*100
+    # print(d.round(2))
+    df_new_concat['总资产收益率'] = (d.round(2)).values
+    return df_new_concat

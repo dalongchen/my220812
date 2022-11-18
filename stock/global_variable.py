@@ -2,11 +2,6 @@ from time import time
 from pathlib import Path
 import sqlite3
 
-# 银行500亿以上
-bank_li = """sh601398,sz000001,sz002142,sh600000,sh600015,sh600016,sh600036,
-sh600919,sh600926,sh601009,sh601166,sh601169,sh601229,sh601288,sh601328,
-sh601658,sh601818,sh601838,sh601916,sh601939,sh601988,sh601998"""
-
 
 def time_show(func):
     def new_func(*arg, **kw):
@@ -50,3 +45,31 @@ def history_k_single(name2, code2, conn='', save='',
             stock_zh_a_hist_df.to_sql(
                 name2+code2+'hfq', con=conn, if_exists='replace', index=False)
             conn.commit()
+
+
+# 获取季度数组
+def get_quarter_array():
+    return [
+        '20211231',
+        '20201231',
+        '20191231',
+        '20181231',
+        '20171231',
+        '20161231',
+        '20151231',
+        '20141231',
+        '20131231',
+        '20121231',
+        '20111231',
+        '20101231',
+        '20091231',
+        '20081231',
+        '20071231',
+        '20061231',
+        '20051231',
+        '20041231',
+        '20031231',
+        '20021231',
+        '20011231',
+        '20001231'
+    ]

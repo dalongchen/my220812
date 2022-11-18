@@ -313,6 +313,14 @@ def stock_yjbb_em(request):
     down_num = int(request.GET.get('down_num', default='11'))
     print(quarter, len, up_num, down_num)
     new_concat = tool_akshare.stock_yjbb_em_20(quarter, len)
+    new_concat['营业收入'] = (new_concat['营业收入']/100000000).round(2)
+    new_concat['营收同比'] = (new_concat['营收同比']).round(2)
+    new_concat['营收季度环比'] = (new_concat['营收季度环比']).round(2)
+    new_concat['净利润'] = (new_concat['净利润']/100000000).round(2)
+    new_concat['净利同比'] = (new_concat['净利同比']).round(2)
+    new_concat['净利季度环比'] = (new_concat['净利季度环比']).round(2)
+    new_concat['毛利率'] = (new_concat['毛利率']).round(2)
+    # print((new_concat['净利润']/100000000).round(2))
     col = []
     for i, t in enumerate(new_concat.columns):
         col.append({'name': i, 'align': 'left', 'label': t, 'field': i,

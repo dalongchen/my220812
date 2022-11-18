@@ -229,34 +229,6 @@ def history_k_day_add():
 # history_k_day_add()
 
 
-# @gl_v.time_show
-# def stock_financial_analysis_indicator_df():
-#     import akshare as ak
-#     import time
-#     conn, cur = gl_v.get_conn_cur()
-
-#     # 查询股票中文名
-#     sql_china_name = """select * from stock_info_a_code_name
-#      where code like '00%' or code like '30%' or code like '60%'"""
-#     cu = cur.execute(sql_china_name)
-#     # for t in cu.fetchmany():
-#     for t in cu.fetchall():
-#         print(t[0])
-#         st = ak.stock_financial_analysis_indicator(symbol=t[0])
-#         # print(st)
-#         time.sleep(1.65)
-#         save = 'y'
-#         if save == 'y':
-#             st.to_sql(
-#                 t[1].replace(' ', '').replace('*', '') + t[0] +
-#                 'financial_indicator',
-#                 con=conn, if_exists='replace', index=False)
-#     conn.close()
-
-
-# stock_financial_analysis_indicator_df()
-
-
 @gl_v.time_show  # 业绩报表,年
 def stock_yjbb_em():
     import akshare as ak
@@ -302,80 +274,157 @@ def stock_yjbb_em():
 # stock_yjbb_em()
 
 
-@gl_v.time_show
-def stock_yjbb_em_20():
-    import pandas as pd
+@gl_v.time_show  # east资产负债表,年
+def stock_zcfz_em():
+    import akshare as ak
+    import time
     conn, cur = gl_v.get_conn_cur()
-    # 查询股票中文名
-    sql_jzcsyl = """select 股票代码, 股票简称, 净资产收益率
-     from {} where 净资产收益率>{} and
-    (股票代码 like '00%' or 股票代码 like '30%' or 股票代码 like '60%')"""
-    # 查询申购日期
-    sql_sg_day = """select 股票代码, 股票简称, 申购日期
-     from stock_xgsglb_em20100113 where 股票代码='{}'"""
+    """notice修改列名
+        sql_zcfzb2 = "select * from {}"
+        da = pd.read_sql(sql_zcfzb2.format('stock_zcfz_em' + t), conn)
+        da.rename(columns={
+            '资产-货币资金': '货币资金',
+            '资产-应收账款': '应收账款',
+            '资产-存货': '存货',
+            '资产-总资产': '总资产',
+            '资产-总资产同比': '总资产同比',
+            '负债-应付账款': '应付账款',
+            '负债-预收账款': '预收账款',
+            '负债-总负债': '总负债',
+            '负债-总负债同比': '总负债同比',
+        }, inplace=True)
+        print(da)
+    """
     arr = [
-        'stock_yjbb_em20211231',
-        'stock_yjbb_em20201231',
-        'stock_yjbb_em20191231'
+        '20211231',
+        '20201231',
+        '20191231',
+        '20181231',
+        '20171231',
+        '20161231',
+        '20151231',
+        '20141231',
+        '20131231',
+        '20121231',
+        '20111231',
+        '20101231',
+        '20091231',
+        '20081231',
+        '20071231',
+        '20061231',
+        '20051231',
+        '20041231',
+        '20031231',
+        '20021231',
+        '20011231',
+        '20001231'
     ]
-    # 获取每一季度符合条件的股票>19,非新股
-    df_new20211231 = new_stock_yjbb_em_20(pd, conn, sql_sg_day, sql_jzcsyl,
-                                          arr[0], x_day='2019-01-01')
-    print(df_new20211231)
-    df_new20201231 = new_stock_yjbb_em_20(pd, conn, sql_sg_day, sql_jzcsyl,
-                                          arr[1], x_day='2018-01-01')
-    print(df_new20201231)
-    df_new20191231 = new_stock_yjbb_em_20(pd, conn, sql_sg_day, sql_jzcsyl,
-                                          arr[2], x_day='2017-01-01')
-    print(df_new20191231)
-    # 循环合并21-20两df中的重复部分
-    df_new_concat = new_stock_yjbb_em_20_concat(pd, df_new20211231,
-                                                df_new20201231['股票代码'].values)
-    print(df_new_concat)
-    # 循环合并20-19两df中的重复部分
-    concat_19 = new_stock_yjbb_em_20_concat(pd, df_new_concat,
-                                            df_new20191231['股票代码'].values)
-    print(concat_19)
+    for t in arr[1:]:
+        print(t)
+        st = ak.stock_zcfz_em(date=t)
+        # print(st)
+        time.sleep(0.5)
+        save = ''
+        if save == 'y':
+            st.to_sql('stock_zcfz_em' + t, con=conn,
+                      if_exists='replace', index=False)
     conn.close()
 
 
-# 循环合并两df中的重复部分
-def new_stock_yjbb_em_20_concat(pd, df_new202112, df_new202012):
-    df_new_concat = pd.DataFrame()  # 循环合并两df中的重复部分
-    for i, t in df_new202112.iterrows():
-        # print(t['股票代码'])
-        if t['股票代码'] in df_new202012:
-            df_new_concat = pd.concat([df_new_concat, t], axis=1)
-    df_new_concat = pd.DataFrame(df_new_concat.values.T,
-                                 index=df_new_concat.columns,
-                                 columns=df_new_concat.index)
-    return df_new_concat
+# stock_zcfz_em()
 
 
-# 获取每一季度符合条件的股票>19,非新股
-def new_stock_yjbb_em_20(pd, conn, sql_sg_day, sql_jzcsyl, arr_quater, x_day):
-    dat = pd.read_sql(sql_jzcsyl.format(arr_quater, 19), conn)
-    df_new20211231 = pd.DataFrame()  # 循环2021获取非新股
-    for i, t in dat.iterrows():
-        # print(t['股票代码'])
-        dat_day = pd.read_sql(sql_sg_day.format(t['股票代码']), conn)
-        # print(dat_day)
-        if dat_day.shape[0] > 0:
-            dat_day = dat_day['申购日期'].values
-            # sg_day = pd.Timestamp(dat_day[0])
-            # sg_day = pd.Timestamp('2019-01-01')
-            if pd.Timestamp(dat_day[0]) < pd.Timestamp(x_day):
-                # print(dat_day[0])
-                df_new20211231 = pd.concat([df_new20211231, t], axis=1)
-        else:
-            df_new20211231 = pd.concat([df_new20211231, t], axis=1)
-    df_new20211231 = pd.DataFrame(df_new20211231.values.T,
-                                  index=df_new20211231.columns,
-                                  columns=df_new20211231.index)
-    return df_new20211231
+@gl_v.time_show  # east利润表,年
+def stock_lrb_em():
+    import akshare as ak
+    import time
+    conn, cur = gl_v.get_conn_cur()
+    """修改列名
+        da = pd.read_sql(sql_lrb.format(t['name']), conn)
+        da.rename(columns={
+            '营业收入-营业收入': '营业收入',
+            '营业收入-同比增长': '营收同比',
+            '营业收入-季度环比增长': '营收季度环比',
+            '净利润-净利润': '净利润',
+            '净利润-同比增长': '净利同比',
+            '净利润-季度环比增长': '净利季度环比',
+        }, inplace=True)
+    """
+    arr = [
+        '20211231',
+        '20201231',
+        '20191231',
+        '20181231',
+        '20171231',
+        '20161231',
+        '20151231',
+        '20141231',
+        '20131231',
+        '20121231',
+        '20111231',
+        '20101231',
+        '20091231',
+        '20081231',
+        '20071231',
+        '20061231',
+        '20051231',
+        '20041231',
+        '20031231',
+        '20021231',
+        '20011231',
+        '20001231'
+    ]
+    for t in arr[1:]:
+        print(t)
+        st = ak.stock_lrb_em(date=t)
+        print(st)
+        save = ''
+        if save == 'y':
+            st.to_sql('stock_lrb_em' + t, con=conn,
+                      if_exists='replace', index=False)
+        time.sleep(0.9)
+    conn.close()
 
 
-# stock_yjbb_em_20()
+# stock_lrb_em()
+
+
+@gl_v.time_show  # 构建自己的季度净资产收益率,总资产收益率
+def get_my_quarter():
+    import pandas as pd
+    conn, cur = gl_v.get_conn_cur()
+    arr = gl_v.get_quarter_array()
+    # 查询有没有这个表
+    sql_jlrb = """select 股票代码,股票简称,净利润 from {}"""
+    sql_zcfzb = r"""select 股票代码,股东权益合计,总资产 from {}"""
+    for t in arr[1:]:
+        print(t)
+        dat = pd.read_sql(sql_jlrb.format('stock_lrb_em' + t), conn)
+        dat2 = pd.read_sql(sql_zcfzb.format('stock_zcfz_em' + t), conn)
+        dat_c = dat[['股票代码', '股票简称']].copy()
+        # print(dat_c)
+        zzc = []
+        for i, tt in dat.iterrows():
+            aa = dat2[dat2["股票代码"] == tt['股票代码']]
+            if not aa.empty:
+                if aa['总资产'].values:
+                    zzc.append(round(tt['净利润']/aa['总资产'].values[0], 4))
+                else:
+                    zzc.append('')
+            else:
+                # print(t['股票代码'])
+                zzc.append('')
+                # break
+        dat_c['总资产收益率'] = zzc
+        # print(dat_c)
+        save = ''
+        if save == 'y':
+            dat_c.to_sql('my' + t, con=conn,
+                         if_exists='replace', index=False)
+    conn.close()
+
+
+# get_my_quarter()
 
 
 @gl_v.time_show  # 新股申购日期
@@ -393,3 +442,53 @@ def stock_xgsglb_em():
 
 
 # stock_xgsglb_em()
+
+
+@gl_v.time_show  # 删除表
+def delete_table():
+    import pandas as pd
+    conn, cur = gl_v.get_conn_cur()
+    # 查询有没有这个表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name like '%{}'"""
+    # sql_drop = """drop table {}"""
+    dat = pd.read_sql(sql_tab_name.format('financial_indicator'), conn)
+    for i, t in dat.iterrows():
+        print(t['name'])
+        # cur.execute(sql_drop.format(t['name']))
+
+    conn.close()
+
+
+# delete_table()
+
+
+@gl_v.time_show  # 修改列名
+def update_column():
+    import pandas as pd
+    conn, cur = gl_v.get_conn_cur()
+    # 查询有没有这个表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name like '{}%'"""
+    sql_lrb = "select * from {}"
+    dat = pd.read_sql(sql_tab_name.format('stock_yjbb_em20'), conn)
+    for i, t in dat.iterrows():
+        print(t['name'])
+        da = pd.read_sql(sql_lrb.format(t['name']), conn)
+        da.rename(columns={
+            '营业收入-营业收入': '营业收入',
+            '营业收入-同比增长': '营收同比',
+            '营业收入-季度环比增长': '营收季度环比',
+            '净利润-净利润': '净利润',
+            '净利润-同比增长': '净利同比',
+            '净利润-季度环比增长': '净利季度环比',
+        }, inplace=True)
+        # print(da)
+        save = 'y'
+        if save == 'y':
+            da.to_sql(t['name'], con=conn, if_exists='replace', index=False)
+
+    conn.close()
+
+
+# update_column()
