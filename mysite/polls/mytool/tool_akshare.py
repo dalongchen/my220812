@@ -1,5 +1,6 @@
 from . import tool_db, tools
 import pandas as pd
+import akshare as ak
 
 
 def stock_yjbb_em_20(quarter, len):  # 查询股票 净资产收益率
@@ -54,39 +55,6 @@ def stock_yjbb_em_20(quarter, len):  # 查询股票 净资产收益率
     return df_new_concat
 
 
-# def stock_yjbb_em_20(quarter, len):  # 查询股票 净资产收益率
-#     conn, cur = tool_db.get_conn_cur()
-#     # 查询股票 净资产收益率
-#     sql_jzcsyl = """select 股票代码, 股票简称, 净资产收益率
-#      from {} where 净资产收益率>{} and
-#     (股票代码 like '00%' or 股票代码 like '30%' or 股票代码 like '60%')"""
-#     # 查询申购日期
-#     sql_sg_day = """select 股票代码, 股票简称, 申购日期
-#      from stock_xgsglb_em20100113 where 股票代码='{}'"""
-#     quar_new = pd.DataFrame()
-#     # print(not quar_new.empty)
-#     for quar in quarter:
-#         if not quar_new.empty:
-#             # 获取每一季度符合条件的股票>19,非新股
-#             quar_new1 = new_stock_yjbb_em_20(
-#                 conn, sql_sg_day, sql_jzcsyl, quar)
-#             # 循环合并两df中的重复部分
-#             quar_new = tools.new_stock_yjbb_em_20_delete(
-#                 quar_new, quar_new1['股票代码'].values)
-#         else:
-#             quar_new = new_stock_yjbb_em_20(
-#                 conn, sql_sg_day, sql_jzcsyl, quar)
-#     # 查询全部交易股票
-#     sql_all = """select code from stock_info_a_code_name"""
-#     dat_all = pd.read_sql(sql_all, conn)
-#     # 循环合并两df中的重复部分
-#     df_new_concat = tools.new_stock_yjbb_em_20_delete(
-#         quar_new, dat_all['code'].values)
-#     print(df_new_concat)
-#     conn.close()
-#     return df_new_concat
-
-
 # 获取每一季度符合条件的股票>19,非新股,上市2year以上
 def new_stock_yjbb_em_20(
         conn, sql_sg_day, sql_jzcsyl, quater):
@@ -104,3 +72,88 @@ def new_stock_yjbb_em_20(
             if pd.Timestamp(dat_day[0]) > pd.Timestamp(x_day):
                 df_new2021.drop(index=[i], inplace=True)
     return df_new2021
+
+
+def ak_zhang_ting(day2):  # 涨停,技术股
+    day2 = day2.replace('/', '')
+    print(day2)
+    conn, cur = tool_db.get_conn_cur()
+    # 查询有没有这个表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name = '{}'"""
+    # day2 = '20221118'
+    dat = pd.read_sql(sql_tab_name.format('zhangTing' + day2), conn)
+    if dat.shape[0] == 0:  # 如果表名不存在-进
+        print('表名不存在--下载', dat)
+        sto = ak.stock_zt_pool_em(date=day2)
+        # print(sto)
+        save = 'y'
+        if (save == 'y') and not sto.empty:
+            sto.to_sql('zhangTing' + day2, con=conn,
+                       if_exists='replace', index=False)
+    # breakpoint()
+    # 查询某天涨停股
+    da = pd.read_sql("""select * from {} where
+        代码 like '00%' or 代码 like '30%' or 代码 like '60%'
+        """.format('zhangTing' + day2), conn)
+    conn.close()
+    return da
+
+
+def ak_update_day_k(day2):  # 更新history day k线数据和在交易股票表
+    import datetime
+    import time
+    day2 = day2.replace('/', '')
+    # print(day2)
+    conn, cur = tool_db.get_conn_cur()
+    #  保存在交易股票表
+    save2 = 'y'
+    if save2 == 'y':
+        ak.stock_info_a_code_name().to_sql(
+            'stock_info_a_code_name', con=conn,
+            if_exists='replace', index=False)
+    # 查询在交易股票
+    sql_tab_name = r"""select * from stock_info_a_code_name where
+        code like '00%' or code like '30%' or code like '60%'"""
+    dat = pd.read_sql(sql_tab_name, conn)
+    #  查询日k数据的最后日期
+    day_new = pd.read_sql(
+        r"""select 日期 from {} order by 日期 desc limit 1""".format(
+            dat.iloc[0]['name'].replace(' ', '').replace('*', '') +
+            dat.iloc[0]['code'] + 'hfq'), conn)
+    day_new = pd.to_datetime(day_new['日期']) + datetime.timedelta(1)
+    # print(day_new)  # 日期加1天
+    day_new = str(day_new.values[0]
+                  ).replace('T00:00:00.000000000', '').replace('-', '')
+    print(day_new)
+    for i, t in dat.iloc[2:].iterrows():
+        print(t['name'].replace(' ', '').replace('*', '') + t['code'])
+        history_k_add(t['name'].replace(' ', '').replace('*', ''),
+                      t['code'], day_new, day2, conn=conn,
+                      save='y', fq='hfq')  # 获取数据并保存数据库
+        time.sleep(0.5)
+    conn.close()
+    # return da
+
+
+def history_k_add(name2, code2, start_date, end_date, conn='', save='',
+                  fq='hfq'):  # 获取数据并保存数据库
+    # 获取最近几天k数据
+    st = ak.stock_zh_a_hist(
+        symbol=code2, period="daily", start_date=start_date,
+        end_date=end_date, adjust=fq)
+    print(st)
+    # breakpoint()
+    if save == 'y':
+        if conn == '':
+            from . import tool_db
+            conn, cur = tool_db.get_conn_cur()
+            st.to_sql(name2 + code2 + fq, con=conn,
+                      if_exists='append', index=False)
+            conn.commit()
+            conn.close()
+        else:
+            print('save', name2)
+            st.to_sql(name2 + code2 + fq, con=conn,
+                      if_exists='append', index=False)
+            # conn.commit()

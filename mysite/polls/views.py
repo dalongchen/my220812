@@ -53,19 +53,17 @@ def detail(request, question_id):
 @tools.time_show
 def results(request, question_id):  # k线图和预增提示
     inp = request.GET.get('inp', default='11')
-    inp2 = tools.add_sh(inp, big='east.')
-    print(question_id, inp2)
+    # inp2 = tools.add_sh(inp, big='east.')
+    print(question_id, inp)
     conn, cur = tool_db.get_conn_cur()
-    """'date', 'open', 'close', 'high', 'low', 'volume', 'amount', 'amplitude',
-     'up_change', 'num_change', 'turnover'"""
-    sql = r"""select * from '{}' where volume != 0""".format('east'+inp2+'_2')
+    sql = r"""select * from '{}'""".format('east'+inp+'_2')
     try:
         dat2 = pd.read_sql(sql, conn)
     except Exception as e:
         # print(e)
         if 'no such table' in str(e):
-            print(inp2, '没有后复权表数据,正下载east')
-            tool_east.east_history_k_data(inp2, 2, save='y')  # fq=1前，=2后复权
+            print(inp, '没有后复权表数据,正下载east')
+            tool_east.east_history_k_data(inp, 2, save='y')  # fq=1前，=2后复权
             dat2 = pd.read_sql(sql, conn)
             time.sleep(1.3)
         else:
@@ -83,13 +81,13 @@ def results(request, question_id):  # k线图和预增提示
 
         def datacheck(data):
             dat_high = pd.read_sql(sql_high.format(
-                'east'+inp2+'_2', data), conn)
+                'east'+inp+'_2', data), conn)
             if not dat_high.empty:
                 return dat_high.values[0]
             else:
                 sql_high2 = r"""select date,high from '{}' where date>'{}'"""
                 dat_high = pd.read_sql(sql_high2.format(
-                    'east'+inp2+'_2', data), conn)
+                    'east'+inp+'_2', data), conn)
                 if not dat_high.empty:
                     return dat_high.head(1).values[0]
                 else:
@@ -124,6 +122,38 @@ def results(request, question_id):  # k线图和预增提示
             'turnover']].values.tolist(),
         'volumes': dat2[['i', 'volume', 'max']].values.tolist(),
         'dat_yj_yg': dat_yj_yg.values.tolist()
+    })
+
+
+@tools.time_show
+def stock_standard_k(request, question_id):  # 标准k线图和?提示
+    inp = request.GET.get('inp', default='11')
+    conn, cur = tool_db.get_conn_cur()
+    # 查询有没有这个表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name like '%{}'"""
+    dat = pd.read_sql(sql_tab_name.format(inp + 'hfq'), conn)
+    # breakpoint()
+    if dat.shape[0] == 1:
+        # print(dat['name'], dat.shape)
+        sql = r"""select * from '{}'""".format(dat['name'].values[0])
+        dat2 = pd.read_sql(sql, conn)
+        # print(dat2.iloc[:, 1:])
+        # breakpoint()
+        value2 = dat2.iloc[:, 1:].values.tolist()
+        # 控制成交金额颜色转换和k线同步
+        dat2.insert(4, 'i', dat2.index.tolist())
+        dat2['max'] = dat2.apply(lambda x: 1 if x['收盘']
+                                 > x['开盘'] else -1, axis=1)
+    else:
+        print('没有这个表:', inp)
+    conn.close()
+
+    return JsonResponse({
+        'categoryData': dat2.日期.values.tolist(),
+        'values': value2,
+        'volumes': dat2[['i', '成交额', 'max']].values.tolist(),
+        # 'dat_yj_yg': dat_yj_yg.values.tolist()
     })
 
 
@@ -293,17 +323,10 @@ def vote(request, question_id):
         'code2': df_up1['股票代码'].values.tolist(),
         'name2': df_up1['股票简称'].values.tolist()
     })
-    #     return JsonResponse({
-    #     'col': col,
-    #     'da':df_no_total.values.tolist(),
-    #     'code2':df_no_total['股票代码'].values.tolist(),
-    #     'name2':df_no_total['股票简称'].values.tolist()
-    # })
-    # return HttpResponse("You're voting on question %s." % question_id)
 
 
 @tools.time_show
-def stock_yjbb_em(request):
+def stock_yjbb_em(request):  # 基本面 净资产收益率,总资产收益率,分季度
     quarter = request.GET.get('quarter', default='11')
     quarter = json.loads(quarter).get('_value')
     # print(quarter)
@@ -332,3 +355,56 @@ def stock_yjbb_em(request):
         'code2': new_concat['股票代码'].values.tolist(),
         'name2': new_concat['股票简称'].values.tolist()
     })
+
+
+@tools.time_show  # 涨停,技术股
+def zhang_ting(request):
+    quarter = request.GET.get('quarter', default='11')
+    quarter = json.loads(quarter).get('_value')
+    # print(quarter)
+    # len = int(request.GET.get('day_num', default='11'))
+    # up_num = int(request.GET.get('up_num', default='11'))
+    # down_num = int(request.GET.get('down_num', default='11'))
+    new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
+    # breakpoint()
+    new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
+    # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
+    col = []
+    for i, t in enumerate(new_concat.columns):
+        col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+                    'sortable': True, 'style': 'padding: 0px 0px',
+                    'headerStyle': 'padding: 0px 0px'})
+    return JsonResponse({
+        'col': col,
+        'da': new_concat.values.tolist(),
+        'code2': new_concat['代码'].values.tolist(),
+        'name2': new_concat['名称'].values.tolist()
+    })
+
+
+@tools.time_show  # 更新history day k线数据和在交易股票表
+def update_day_k(request):
+    quarter = request.GET.get('quarter', default='11')
+    quarter = json.loads(quarter).get('_value')
+    print(quarter)
+    # len = int(request.GET.get('day_num', default='11'))
+    # up_num = int(request.GET.get('up_num', default='11'))
+    # down_num = int(request.GET.get('down_num', default='11'))
+    tool_akshare.ak_update_day_k(quarter)
+    # new_concat = tool_akshare.ak_update_day_k(quarter)
+    return JsonResponse({})
+
+    # breakpoint()
+    # new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
+    # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
+    # col = []
+    # for i, t in enumerate(new_concat.columns):
+    #     col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+    #                 'sortable': True, 'style': 'padding: 0px 0px',
+    #                 'headerStyle': 'padding: 0px 0px'})
+    # return JsonResponse({
+    #     'col': col,
+    #     'da': new_concat.values.tolist(),
+    #     'code2': new_concat['代码'].values.tolist(),
+    #     'name2': new_concat['名称'].values.tolist()
+    # })
