@@ -7,3 +7,5 @@ conda install -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/linux-6
 其中参数-c指定了镜像源的通道
 pip uninstall demjson
 pip install setuptools==57.5.0
+
+pip install akshare --upgrade -i https://pypi.tuna.tsinghua.edu.cn/simple

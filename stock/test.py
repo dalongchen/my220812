@@ -492,3 +492,45 @@ def update_column():
 
 
 # update_column()
+
+
+@gl_v.time_show  # 中报,年报分红配送
+def stock_fhps_em(save=''):
+    import akshare as ak
+    import time
+    conn, cur = gl_v.get_conn_cur()
+    for i in gl_v.get_quarter_array(f='year_middle')[:1]:
+        st = ak.stock_fhps_em(date=i)
+        print("stock_fhps_em" + i)
+        st.rename(columns={
+            '送转股份-送转总比例': '送转总比例',
+            '送转股份-送转比例': '送转比例',
+            '送转股份-转股比例': '转股比例',
+            '现金分红-现金分红比例': '现金分红比例',
+            '现金分红-股息率': '股息率',
+        }, inplace=True)
+        print(st)
+        if save == 'y':
+            st.to_sql("stock_fhps_em" + i, con=conn,
+                      if_exists='replace', index=False)
+        time.sleep(0.7)
+    conn.close()
+
+
+# stock_fhps_em()
+
+
+@gl_v.time_show  # 地址: http://data.eastmoney.com/xg/pg/ 配股
+def stock_em_pg(save='y'):
+    import akshare as ak
+    conn, cur = gl_v.get_conn_cur()
+    print('stttt')
+    st = ak.stock_em_pg()
+    print(st)
+    if save == 'y':
+        st.to_sql("stock_em_pg", con=conn,
+                  if_exists='replace', index=False)
+    conn.close()
+
+
+stock_em_pg()
