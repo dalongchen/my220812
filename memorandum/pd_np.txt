@@ -8,3 +8,6 @@ df = pd.read_pickle('xxx.pkl') #读取
 比pandas时间差不多
 data['股票代码'] = np.where((data['股票代码'].str[:2] == '00') | (data['股票代码'].str[:2] == '30'), '0'+data['股票代码'], data['股票代码'])
 data['股票代码'] = data['股票代码'].mask((data['股票代码'].str[:2] == '00') | (data['股票代码'].str[:2] == '30'), '0'+data['股票代码'])
+
+pd.set_option('expand_frame_repr', False) # 当列太多时不换行
+pd.set_option('display.max_rows', 5000) # 最多显示数据的行数

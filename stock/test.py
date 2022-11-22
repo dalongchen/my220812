@@ -202,31 +202,42 @@ def history_m_table_name():
 
 
 @gl_v.time_show
-def history_k_day_add():
-    # import akshare as ak
+def history_k_day_add(f='', name2='', code2='', save='', end_date=''):
+    """
+    目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
+    描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新, 当日收盘价请在收盘后获取
+    限量: 单次返回指定沪深京 A 股上市公司、指定周期和指定日期间的历史行情日频率数据
+    """
     import time
     conn, cur = gl_v.get_conn_cur()
-    # stock_info_a_code_name_df = ak.stock_info_a_code_name()
-    # save = 'y'
-    # if save == 'y':
-    #     stock_info_a_code_name_df.to_sql(
-    #         'stock_info_a_code_name', con=conn,
-    #         if_exists='replace', index=False)
+    if f == 'one':
+        gl_v.history_k_single(name2, code2, conn, save, end_date)
 
-    # 查询股票中文名
-    sql_china_name = """select * from stock_info_a_code_name
-     where code like '00%' or code like '30%' or code like '60%'"""
-    cu = cur.execute(sql_china_name)
-    for t in cu.fetchall():
-        print(t)
-        gl_v.history_k_single(t[1].replace(' ', '').replace('*', ''),
-                              t[0], conn, save='y',
-                              end_date='20221115')  # fq=qfq前，=hfq后复权
-        time.sleep(1.75)
+    if f == 'mult':
+        # stock_info_a_code_name_df = ak.stock_info_a_code_name()
+        # save = 'y'
+        # if save == 'y':
+        #     stock_info_a_code_name_df.to_sql(
+        #         'stock_info_a_code_name', con=conn,
+        #         if_exists='replace', index=False)
+
+        # 查询股票中文名
+        sql_china_name = """select * from stock_info_a_code_name
+        where code like '00%' or code like '30%' or code like '60%'"""
+        cu = cur.execute(sql_china_name)
+        for t in cu.fetchall():
+            print(t)
+            gl_v.history_k_single(t[1].replace(' ', '').replace('*', ''),
+                                  t[0], conn, save='y',
+                                  end_date=end_date)
+            time.sleep(0.75)
     conn.close()
 
 
-# history_k_day_add()
+# md = ['美的集团', '000333']
+# tqly = ['天齐锂业', '002466']
+# history_k_day_add(f='one', name2=tqly[0], code2=tqly[1], save='y',
+#                   end_date='20221118')  # f='one'-单个股票
 
 
 @gl_v.time_show  # 业绩报表,年
@@ -533,4 +544,41 @@ def stock_em_pg(save='y'):
     conn.close()
 
 
-stock_em_pg()
+# stock_em_pg()
+
+
+@gl_v.time_show  # 计算复权因子
+def fq_factor(tab, code, save=''):
+    import pandas as pd
+    conn, cur = gl_v.get_conn_cur()
+    # 查询有没有表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name like '{}%'"""
+    # 查询是否有分红送股
+    sql_s = r"""select 代码,名称,送转总比例,现金分红比例,除权除息日 from {} where 代码='{}'"""
+    dat = pd.read_sql(sql_tab_name.format(tab), conn)
+    dfr = pd.DataFrame()
+    # 查询前收盘价
+    sql_s = r"""select 收盘价 from {} where 日期<'{}'"""
+    for i, t in dat.iterrows():
+        s = pd.read_sql(sql_s.format(t['name'], code), conn)
+        if s.shape[0] > 0:
+            # 查询前收盘价
+            d = pd.read_sql(sql_tab_name.format(tab, s['除权除息日']), conn)
+            # print(s[['代码', '名称', '', '现金分红比例', '除权除息日']])
+            dfr = pd.concat([dfr, s], axis=0)  # 纵向合并
+    print(dfr)
+    # 查询是否有配股
+    sql_s = r"""select 代码,名称,配股比,除权日 from {} where 代码='{}'"""
+    da = pd.read_sql(sql_tab_name.format('east_history_peigu', code), conn)
+    print(da, 'klllpp')
+    # if save == 'y':
+    #     s.to_sql(tab, con=conn,
+    #              if_exists='replace', index=False)
+    conn.close()
+
+
+fq_factor('stock_fhps_em', '000333', save='')
+# fq_factor('美的集团000333', save='y')
+
+

@@ -26,8 +26,13 @@ def get_conn_cur():
 
 
 def history_k_single(name2, code2, conn='', save='',
-                     end_date='20221115', fq='hfq'):  # 获取数据并保存数据库
+                     end_date='', fq=''):  # 获取数据并保存数据库
     import akshare as ak
+    """
+    目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
+    描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新, 当日收盘价请在收盘后获取
+    限量: 单次返回指定沪深京 A 股上市公司、指定周期和指定日期间的历史行情日频率数据
+    """
 
     stock_zh_a_hist_df = ak.stock_zh_a_hist(symbol=code2, period="daily",
                                             start_date='',  end_date=end_date,
@@ -38,12 +43,12 @@ def history_k_single(name2, code2, conn='', save='',
             from . import tool_db
             conn, cur = tool_db.get_conn_cur()
             stock_zh_a_hist_df.to_sql(
-                name2+code2+'hfq', con=conn, if_exists='replace', index=False)
+                name2+code2+fq, con=conn, if_exists='replace', index=False)
             conn.commit()
             conn.close()
         else:
             stock_zh_a_hist_df.to_sql(
-                name2+code2+'hfq', con=conn, if_exists='replace', index=False)
+                name2+code2+fq, con=conn, if_exists='replace', index=False)
             conn.commit()
 
 
