@@ -12,6 +12,20 @@ def test():
     print(df2)
 
 
+def test2():
+    import numpy as np
+    dfc = pd.DataFrame({
+        'a': ['one', 'one', 'two', 'three', 'two', 'one', 'six'],
+        'c': np.arange(7)})
+    dfd = dfc.copy()
+    # Setting multiple items using a mask
+    mask = dfd['a'].str.startswith('o')
+    # breakpoint()
+    dfd.loc[mask, 'c'] = 42
+    print(dfd)
+
+
+test2()
 # def test_hfq():
 #     # 计算后复权值
 #     df['hfqyinzi']=(df['chgPct']+1).cumprod()
