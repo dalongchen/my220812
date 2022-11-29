@@ -61,8 +61,8 @@ def east_history_peigu_data(save=''):
                     else:
                         data_t.to_sql('east_history_peigu', con=conn,
                                       if_exists='append', index=False)
-            time.sleep(0.7)
+            time.sleep(0.5)
         conn.close()
 
 
-east_history_peigu_data(save='')
+# east_history_peigu_data(save='')

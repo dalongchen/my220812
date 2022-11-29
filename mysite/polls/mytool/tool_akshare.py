@@ -100,60 +100,100 @@ def ak_zhang_ting(day2):  # 涨停,技术股
     return da
 
 
-def ak_update_day_k(day2):  # 更新history day k线数据和在交易股票表
-    import datetime
-    import time
-    day2 = day2.replace('/', '')
-    # print(day2)
+# 目标地址: http://quote.eastmoney.com/center/gridlist.html#hs_a_board
+# 东方财富网-沪深京 A 股-实时行情数据
+def stock_zh_a_spot_em(save, day):
     conn, cur = tool_db.get_conn_cur()
-    #  保存在交易股票表
-    save2 = 'y'
-    if save2 == 'y':
-        ak.stock_info_a_code_name().to_sql(
-            'stock_info_a_code_name', con=conn,
-            if_exists='replace', index=False)
-    # 查询在交易股票
-    sql_tab_name = r"""select * from stock_info_a_code_name where
-        code like '00%' or code like '30%' or code like '60%'"""
-    dat = pd.read_sql(sql_tab_name, conn)
-    #  查询日k数据的最后日期
-    day_new = pd.read_sql(
-        r"""select 日期 from {} order by 日期 desc limit 1""".format(
-            dat.iloc[0]['name'].replace(' ', '').replace('*', '') +
-            dat.iloc[0]['code'] + 'hfq'), conn)
-    day_new = pd.to_datetime(day_new['日期']) + datetime.timedelta(1)
-    # print(day_new)  # 日期加1天
-    day_new = str(day_new.values[0]
-                  ).replace('T00:00:00.000000000', '').replace('-', '')
-    print(day_new)
-    for i, t in dat.iloc[2:].iterrows():
-        print(t['name'].replace(' ', '').replace('*', '') + t['code'])
-        history_k_add(t['name'].replace(' ', '').replace('*', ''),
-                      t['code'], day_new, day2, conn=conn,
-                      save='y', fq='hfq')  # 获取数据并保存数据库
-        time.sleep(0.5)
+    st = ak.stock_zh_a_spot_em()
+    # print(st)
+    if st.shape[0] > 0:
+        if save == 'y':
+            st.to_sql('stock_zh_a_spot_em' + day.replace('/', ''), con=conn,
+                      if_exists='replace', index=False)
+    else:
+        print('日期有误,没有k数据1')
     conn.close()
+
+
+# 实时行情转入不复权数据表
+def stock_zh_a_spot_em_to_bfq(save, day):
+    conn, cur = tool_db.get_conn_cur()
+    # 查询股票中文名
+    sql_china_name = """select 代码,名称,今开 as 开盘,最新价 as 收盘,最高,最低,
+    成交量,成交额,振幅,涨跌幅,涨跌额,换手率 from '{}'
+    where 代码 like '00%' or 代码 like '30%' or 代码 like '60%'"""
+    dat = pd.read_sql(sql_china_name.format(
+        'stock_zh_a_spot_em' + day.replace('/', '')), conn)
+    # print(col)
+    if dat.shape[0] > 0:
+        for i, t in dat.iloc[0:].iterrows():
+            # print(i, t['名称'].replace(' ', '').replace('*', ''), t['代码'])
+            tt = pd.DataFrame(t.iloc[2:]).T
+            tt.insert(0, '日期', day.replace('/', '-'))
+            # print(tt)
+            if save == 'y':
+                tt.to_sql(
+                    t['名称'].replace(' ', '').replace('*', '') + t['代码'],
+                    con=conn,
+                    if_exists='append',
+                    index=False)
+    else:
+        print('日期有误,没有k数据2')
+    conn.close
+
+# def ak_update_day_k(day2):  # 更新history day k线数据和在交易股票表
+    # import datetime
+    # import time
+    # day2 = day2.replace('/', '')
+    # # print(day2)
+    # conn, cur = tool_db.get_conn_cur()
+    # #  保存在交易股票表
+    # save2 = 'y'
+    # if save2 == 'y':
+    #     ak.stock_info_a_code_name().to_sql(
+    #         'stock_info_a_code_name', con=conn,
+    #         if_exists='replace', index=False)
+    # # 查询在交易股票
+    # sql_tab_name = r"""select * from stock_info_a_code_name where
+    #     code like '00%' or code like '30%' or code like '60%'"""
+    # dat = pd.read_sql(sql_tab_name, conn)
+    # #  查询日k数据的最后日期
+    # day_new = pd.read_sql(
+    #     r"""select 日期 from {} order by 日期 desc limit 1""".format(
+    #         dat.iloc[0]['name'].replace(' ', '').replace('*', '') +
+    #         dat.iloc[0]['code'] + 'hfq'), conn)
+    # day_new = pd.to_datetime(day_new['日期']) + datetime.timedelta(1)
+    # # print(day_new)  # 日期加1天
+    # day_new = str(day_new.values[0]
+    #               ).replace('T00:00:00.000000000', '').replace('-', '')
+    # print(day_new)
+    # for i, t in dat.iloc[2:].iterrows():
+    #     print(t['name'].replace(' ', '').replace('*', '') + t['code'])
+    #     history_k_add(t['name'].replace(' ', '').replace('*', ''),
+    #                   t['code'], day_new, day2, conn=conn,
+    #                   save='y', fq='hfq')  # 获取数据并保存数据库
+    #     time.sleep(0.5)
+    # conn.close()
     # return da
 
 
-def history_k_add(name2, code2, start_date, end_date, conn='', save='',
-                  fq='hfq'):  # 获取数据并保存数据库
-    # 获取最近几天k数据
-    st = ak.stock_zh_a_hist(
-        symbol=code2, period="daily", start_date=start_date,
-        end_date=end_date, adjust=fq)
-    print(st)
-    # breakpoint()
-    if save == 'y':
-        if conn == '':
-            from . import tool_db
-            conn, cur = tool_db.get_conn_cur()
-            st.to_sql(name2 + code2 + fq, con=conn,
-                      if_exists='append', index=False)
-            conn.commit()
-            conn.close()
-        else:
-            print('save', name2)
-            st.to_sql(name2 + code2 + fq, con=conn,
-                      if_exists='append', index=False)
-            # conn.commit()
+# def history_k_add(name2, code2, start_date, end_date, conn='', save='',
+#                   fq='hfq'):  # 获取数据并保存数据库
+#     # 获取最近几天k数据
+#     st = ak.stock_zh_a_hist(
+#         symbol=code2, period="daily", start_date=start_date,
+#         end_date=end_date, adjust=fq)
+#     print(st)
+#     # breakpoint()
+#     if save == 'y':
+#         if conn == '':
+#             from . import tool_db
+#             conn, cur = tool_db.get_conn_cur()
+#             st.to_sql(name2 + code2 + fq, con=conn,
+#                       if_exists='append', index=False)
+#             conn.commit()
+#             conn.close()
+#         else:
+#             print('save', name2)
+#             st.to_sql(name2 + code2 + fq, con=conn,
+#                       if_exists='append', index=False)
