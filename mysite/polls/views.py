@@ -362,24 +362,23 @@ def zhang_ting(request):
     quarter = request.GET.get('quarter', default='11')
     quarter = json.loads(quarter).get('_value')
     # print(quarter)
-    # len = int(request.GET.get('day_num', default='11'))
-    # up_num = int(request.GET.get('up_num', default='11'))
-    # down_num = int(request.GET.get('down_num', default='11'))
     new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
-    # breakpoint()
-    new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
-    # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
-    col = []
-    for i, t in enumerate(new_concat.columns):
-        col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
-                    'sortable': True, 'style': 'padding: 0px 0px',
-                    'headerStyle': 'padding: 0px 0px'})
-    return JsonResponse({
-        'col': col,
-        'da': new_concat.values.tolist(),
-        'code2': new_concat['代码'].values.tolist(),
-        'name2': new_concat['名称'].values.tolist()
-    })
+    if new_concat.shape[0] > 0:
+        new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
+        # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
+        col = []
+        for i, t in enumerate(new_concat.columns):
+            col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+                        'sortable': True, 'style': 'padding: 0px 0px',
+                        'headerStyle': 'padding: 0px 0px'})
+        return JsonResponse({
+            'col': col,
+            'da': new_concat.values.tolist(),
+            'code2': new_concat['代码'].values.tolist(),
+            'name2': new_concat['名称'].values.tolist()
+        })
+    else:
+        print('非交易日?没有数据')
 
 
 @tools.time_show  # 更新history day k线数据和在交易股票表
@@ -387,9 +386,24 @@ def update_day_k(request):
     quarter = request.GET.get('quarter', default='11')
     quarter = json.loads(quarter).get('_value')
     print(quarter)
-    # 东方财富网-沪深京 A 股当天实时行情数据
-    tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
-    # 实时行情转入不复权数据表
-    tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+    fq = request.GET.get('fq', default='11')
+    fq = json.loads(fq).get('_value')
+    # print(fq)
+    if quarter:
+        if fq == '不复权':
+            print(fq)
+            # 东方财富网-沪深京 A 股当天实时行情数据
+            tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
+            # 实时行情转入不复权数据表
+            # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+        elif fq == '后复权':
+            print(fq)
+            tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
+        else:
+            print('oop')
+            # 东方财富网-沪深京 A 股当天实时行情数据
+            tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
+            # 实时行情转入不复权数据表
+            # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+            tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
     return JsonResponse({})
-

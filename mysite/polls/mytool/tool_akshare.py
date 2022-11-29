@@ -1,4 +1,4 @@
-from . import tool_db, tools
+from . import tool_db, tools, tool_east
 import pandas as pd
 import akshare as ak
 
@@ -87,10 +87,11 @@ def ak_zhang_ting(day2):  # 涨停,技术股
         print('表名不存在--下载', dat)
         sto = ak.stock_zt_pool_em(date=day2)
         # print(sto)
-        save = 'y'
-        if (save == 'y') and not sto.empty:
+        if not sto.empty:
             sto.to_sql('zhangTing' + day2, con=conn,
                        if_exists='replace', index=False)
+        else:
+            print('非交易日?')
     # breakpoint()
     # 查询某天涨停股
     da = pd.read_sql("""select * from {} where
@@ -98,21 +99,6 @@ def ak_zhang_ting(day2):  # 涨停,技术股
         """.format('zhangTing' + day2), conn)
     conn.close()
     return da
-
-
-# 目标地址: http://quote.eastmoney.com/center/gridlist.html#hs_a_board
-# 东方财富网-沪深京 A 股-实时行情数据
-def stock_zh_a_spot_em(save, day):
-    conn, cur = tool_db.get_conn_cur()
-    st = ak.stock_zh_a_spot_em()
-    # print(st)
-    if st.shape[0] > 0:
-        if save == 'y':
-            st.to_sql('stock_zh_a_spot_em' + day.replace('/', ''), con=conn,
-                      if_exists='replace', index=False)
-    else:
-        print('日期有误,没有k数据1')
-    conn.close()
 
 
 # 实时行情转入不复权数据表
@@ -141,59 +127,212 @@ def stock_zh_a_spot_em_to_bfq(save, day):
         print('日期有误,没有k数据2')
     conn.close
 
-# def ak_update_day_k(day2):  # 更新history day k线数据和在交易股票表
-    # import datetime
-    # import time
-    # day2 = day2.replace('/', '')
-    # # print(day2)
-    # conn, cur = tool_db.get_conn_cur()
-    # #  保存在交易股票表
-    # save2 = 'y'
-    # if save2 == 'y':
-    #     ak.stock_info_a_code_name().to_sql(
-    #         'stock_info_a_code_name', con=conn,
-    #         if_exists='replace', index=False)
-    # # 查询在交易股票
-    # sql_tab_name = r"""select * from stock_info_a_code_name where
-    #     code like '00%' or code like '30%' or code like '60%'"""
-    # dat = pd.read_sql(sql_tab_name, conn)
-    # #  查询日k数据的最后日期
-    # day_new = pd.read_sql(
-    #     r"""select 日期 from {} order by 日期 desc limit 1""".format(
-    #         dat.iloc[0]['name'].replace(' ', '').replace('*', '') +
-    #         dat.iloc[0]['code'] + 'hfq'), conn)
-    # day_new = pd.to_datetime(day_new['日期']) + datetime.timedelta(1)
-    # # print(day_new)  # 日期加1天
-    # day_new = str(day_new.values[0]
-    #               ).replace('T00:00:00.000000000', '').replace('-', '')
-    # print(day_new)
-    # for i, t in dat.iloc[2:].iterrows():
-    #     print(t['name'].replace(' ', '').replace('*', '') + t['code'])
-    #     history_k_add(t['name'].replace(' ', '').replace('*', ''),
-    #                   t['code'], day_new, day2, conn=conn,
-    #                   save='y', fq='hfq')  # 获取数据并保存数据库
-    #     time.sleep(0.5)
+
+# 目标地址: http://quote.eastmoney.com/center/gridlist.html#hs_a_board
+# 东方财富网-沪深京 A 股-实时行情数据
+def stock_zh_a_spot_em(save, day):
+    conn, cur = tool_db.get_conn_cur()
+    sql_price = """select * from '{}' where 日期='{}'"""
+    data2 = pd.read_sql(sql_price.format(
+        '平安银行000001', day.replace('/', '-')), conn)
+    data3 = pd.read_sql(sql_price.format(
+        '万科A000002', day.replace('/', '-')), conn)
+    if data2.shape[0] > 0 or data3.shape[0] > 0:
+        print(day + '已经有数据')
+    else:
+        st = ak.stock_zh_a_spot_em()
+        # print(st)
+        if st.shape[0] > 0:
+            if save == 'y':
+                st.to_sql(
+                    'stock_zh_a_spot_em' + day.replace('/', ''),
+                    con=conn, if_exists='replace', index=False)
+            # 实时行情转入不复权数据表
+            stock_zh_a_spot_em_to_bfq(save, day)
+        else:
+            print('日期有误,没有k数据1')
+    conn.close()
+
+
+# 更新交易股票数据
+def stock_info_a_code_name_df(conn):
+    import akshare as ak
+    stock_info_a_code_name_df = ak.stock_info_a_code_name()
+    stock_info_a_code_name_df.to_sql(
+        'stock_info_a_code_name', con=conn,
+        if_exists='replace', index=False)
+
+
+# 中报,年报分红配送
+def stock_fhps_em(save, qua, conn):
+    import time
+    # conn, cur = gl_v.get_conn_cur()
+    for i in tools.get_quarter_array()[:qua]:
+        st = ak.stock_fhps_em(date=i)
+        print("stock_fhps_em" + i)
+        st.rename(columns={
+            '送转股份-送转总比例': '送转总比例',
+            '送转股份-送转比例': '送转比例',
+            '送转股份-转股比例': '转股比例',
+            '现金分红-现金分红比例': '现金分红比例',
+            '现金分红-股息率': '股息率',
+        }, inplace=True)
+        print(st)
+        if save == 'y':
+            st.to_sql("stock_fhps_em" + i, con=conn,
+                      if_exists='replace', index=False)
+        time.sleep(0.4)
     # conn.close()
-    # return da
 
 
-# def history_k_add(name2, code2, start_date, end_date, conn='', save='',
-#                   fq='hfq'):  # 获取数据并保存数据库
-#     # 获取最近几天k数据
-#     st = ak.stock_zh_a_hist(
-#         symbol=code2, period="daily", start_date=start_date,
-#         end_date=end_date, adjust=fq)
-#     print(st)
-#     # breakpoint()
-#     if save == 'y':
-#         if conn == '':
-#             from . import tool_db
-#             conn, cur = tool_db.get_conn_cur()
-#             st.to_sql(name2 + code2 + fq, con=conn,
-#                       if_exists='append', index=False)
-#             conn.commit()
-#             conn.close()
-#         else:
-#             print('save', name2)
-#             st.to_sql(name2 + code2 + fq, con=conn,
-#                       if_exists='append', index=False)
+# 合并季度年度分红送股表
+def concat_fhsg(save, conn):
+    # conn, cur = gl_v.get_conn_cur()
+    # 查询有没有表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name like '{}%'"""
+    dat = pd.read_sql(sql_tab_name.format('stock_fhps_em'), conn)
+    d_fhsg = pd.DataFrame()
+    for i, t in dat.iterrows():
+        da = pd.read_sql("""select * from {}""".format(t['name']), conn)
+        # print(t['name'])
+        d_fhsg = pd.concat([d_fhsg, da], axis=0)  # 纵向合并
+    # print(d_fhsg)
+    if save == 'y':
+        d_fhsg.to_sql('fhsg_total', con=conn,
+                      if_exists='replace', index=False)
+    # conn.close()
+
+
+# 经典计算个股复权
+def fq_factor3(name2, code, fq, save, conn):
+    # 查询是否有分红送股
+    sql_s = r"""select 送转总比例,现金分红比例,除权除息日 as 除权日 from {} where 代码='{}'
+    and 方案进度='实施分配' and 除权除息日!='Null'"""
+    dat = pd.read_sql(sql_s.format('fhsg_total', code), conn).fillna(0)
+    # print(dat)
+    # 查询是否有配股
+    sql_peigu = r"""select 配股比,配股价,除权日 from {} where 代码='{}'"""
+    da = pd.read_sql(sql_peigu.format('east_history_peigu', code), conn)
+    # 获取分红送股和配股中日期相同的数据
+    result = pd.merge(dat, da, on='除权日')
+    k = result.pop("除权日")
+    result.insert(result.shape[1], "除权日", k)  # 将除权日列移到了最后一列去
+    # print(result)
+    dat.insert(2, '配股比', 0)
+    dat.insert(3, '配股价', 0)
+    if da.shape[0] > 0:  # 有配股数据就合并
+        da.insert(0, '送转总比例', 0)
+        da.insert(1, '现金分红比例', 0)
+        # 合并分红送股和配股中日期相同的数据
+        if result.shape[0] > 0:
+            for i, ss in result.iterrows():
+                # print(ss.values)
+                con_day = dat.loc[
+                    dat['除权日'] == ss['除权日']
+                ]
+                con_day2 = da.loc[
+                    da['除权日'] == ss['除权日']
+                ]
+                dat.loc[con_day.index] = ss.values
+                da = da.drop(labels=con_day2.index)
+                # print(dat.loc[con_day.index])
+        dat = pd.concat([dat, da], axis=0)  # 纵向合并
+    if code == '000038':
+        con_ = dat.loc[
+                        dat['除权日'] == 0
+                    ]
+        dat.loc[con_.index] = [3, 0, 0, 0, '2009-05-04']
+        # print(con_)
+    dat = dat.sort_values(by="除权日", ignore_index=True)  # 排序
+    # print(dat)
+    # 查询除权时收盘价...
+    sql_price = r"""select * from {}"""
+    d = pd.read_sql(sql_price.format(name2 + code), conn)
+    if dat.shape[0] > 0:
+        ps_total = 1  # 送股总比
+        pg_total = 1  # 配股总比
+        pg_total_amount = 0  # 配股总金额
+        fh_total = 0  # 总分红
+        # ss2 = pd.DataFrame()
+        for i, s in dat.iloc[0:].iterrows():
+            # print(s, '--------')
+            # if not ss2.empty:
+            #     s = ss2
+            #     print(s, '=======')
+            cqr = s['除权日']
+            if i < (dat.shape[0]-1):
+                hcqr = dat.loc[i+1, '除权日']
+                # 查询收盘价
+                day_ = d.loc[d['日期'] >= cqr]
+                day_ = day_.loc[day_['日期'] < hcqr]
+            else:
+                day_ = d.loc[d['日期'] >= cqr]
+            # if day_.shape[0] < 2:
+            #     if (s['配股比'] and s['配股价'] and
+            #        (not s['现金分红比例']) and (not s['送转总比例'])):
+            #         dat.loc[i+1, '配股比'] = s['配股比']
+            #         dat.loc[i+1, '配股价'] = s['配股价']
+            #         ss2 = dat.loc[i+1]
+            #         # print(ss2)
+            #     continue
+            fh_total += (s['现金分红比例']/10)*ps_total*pg_total
+            # print(ps_total, fh_total)
+            ps_total *= (1+s['送转总比例']/10)
+            pg_total_amount += pg_total*ps_total*(s['配股比']/10)*s['配股价']
+            pg_total *= (1+s['配股比']/10)
+            open_ = (
+                day_['开盘']*ps_total*pg_total +
+                fh_total -
+                pg_total_amount
+            )
+            close_ = (
+                day_['收盘']*ps_total*pg_total +
+                fh_total -
+                pg_total_amount
+            )
+            high_ = (
+                day_['最高']*ps_total*pg_total +
+                fh_total -
+                pg_total_amount
+            )
+            low_ = (
+                day_['最低']*ps_total*pg_total +
+                fh_total -
+                pg_total_amount
+            )
+            # print(close_)
+            d.loc[day_.index, ['开盘']] = open_
+            d.loc[day_.index, ['收盘']] = close_
+            d.loc[day_.index, ['最高']] = high_
+            d.loc[day_.index, ['最低']] = low_
+            # print(d.loc[day_.index])
+        # print(d)
+    if save == 'y':
+        d.to_sql(name2 + code + fq, con=conn,
+                 if_exists='replace', index=False)
+
+
+# 计算后复权数据表
+def hfq_calu_total(fq2, flat):
+    # flat = ''
+    conn, cur = tool_db.get_conn_cur()
+    if flat:
+        stock_info_a_code_name_df(conn)  # 更新交易股票数据
+        # not stock_em_pg()  # 更新配股数据
+        tool_east.east_history_peigu_data(save='y', conn=conn)
+        # 更新中报,年报分红配送(最近2季度)
+        stock_fhps_em(save='y', qua=2, conn=conn)
+        # 合并季度年度分红送股表
+        concat_fhsg(save='y', conn=conn)
+    # 查询股票中文名
+    sql_china_name = """select * from stock_info_a_code_name
+    where code like '00%' or code like '30%' or code like '60%'"""
+    dat = pd.read_sql(sql_china_name, conn)
+    # print(dat)
+    for i, t in dat.iloc[0:].iterrows():
+        print(i, t['name'].replace(' ', '').replace('*', ''), t['code'])
+        # 经典计算复权
+        fq_factor3(t['name'].replace(' ', '').replace('*', ''), t['code'],
+                   fq2, save='y', conn=conn)
+    conn.close

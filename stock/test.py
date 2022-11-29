@@ -778,3 +778,26 @@ def hfq_calu_total(fq, flat):
 
 
 # hfq_calu_total(fq='hfq', flat='')
+
+
+@gl_v.time_show  # 去重
+def qc_replace():
+    conn, cur = gl_v.get_conn_cur()
+    # 查询股票中文名
+    sql_china_name = """select * from stock_info_a_code_name
+    where code like '00%' or code like '30%' or code like '60%'"""
+    dat = pd.read_sql(sql_china_name, conn)
+    # print(dat)
+    sql_name = """select * from '{}'"""
+    for i, t in dat.iloc[0:].iterrows():
+        tab = t['name'].replace(' ', '').replace('*', '') + t['code']
+        print(i, tab)
+        da = pd.read_sql(sql_name.format(tab), conn)
+        da = da.iloc[0:-4]
+        # print(da)
+        da.to_sql(tab, con=conn,
+                  if_exists='replace', index=False)
+    conn.close
+
+
+qc_replace()
