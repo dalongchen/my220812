@@ -1,25 +1,25 @@
 import pandas as pd
-from . import tool_db
+# from . import tool_db
 from time import time
 
 
-def stockk0(inp):  # 不复权
-    conn, cur = tool_db.get_conn_cur()
-    sql = r"""select 日期,收盘价,开盘价,最低价,最高价,成交量 from {} where
-    成交量 != 0""".format(inp)
-    dat2 = pd.read_sql(sql, conn)
-    conn.close()
-    dat2 = dat2.head(3)
-    # print(dat2)
-    dat1_ = dat2.iloc[:, 1:]
-    dat1_pre = dat1_.values  # 未改变前的值
-    dat1_.insert(4, 'i', dat1_.index.tolist())
-    dat1_['max'] = dat1_.apply(
-        lambda x: 1 if x['收盘价'] > x['开盘价'] else -1, axis=1)
-    # print(dat1_.iloc[:,4:].values)
-    dat3 = {'categoryData': dat2.日期.values.tolist(), 'values': dat1_pre.tolist(
-    ), 'volumes': dat1_.iloc[:, 4:].values.tolist()}
-    return dat3
+# def stockk0(inp):  # 不复权
+#     conn, cur = tool_db.get_conn_cur()
+#     sql = r"""select 日期,收盘价,开盘价,最低价,最高价,成交量 from {} where
+#     成交量 != 0""".format(inp)
+#     dat2 = pd.read_sql(sql, conn)
+#     conn.close()
+#     dat2 = dat2.head(3)
+#     # print(dat2)
+#     dat1_ = dat2.iloc[:, 1:]
+#     dat1_pre = dat1_.values  # 未改变前的值
+#     dat1_.insert(4, 'i', dat1_.index.tolist())
+#     dat1_['max'] = dat1_.apply(
+#         lambda x: 1 if x['收盘价'] > x['开盘价'] else -1, axis=1)
+#     # print(dat1_.iloc[:,4:].values)
+#     dat3 = {'categoryData': dat2.日期.values.tolist(), 'values': dat1_pre.tolist(
+#     ), 'volumes': dat1_.iloc[:, 4:].values.tolist()}
+#     return dat3
 
 
 # big="baostock"加(sh. or sz.)code加(sh or sz) or (SZ or SH)

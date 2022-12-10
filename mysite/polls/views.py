@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from .mytool import tool_db, tools, tool_east, tool_akshare
+from .mytool import tool_db, tools, tool_east, tool_akshare, tool_baostock
 import pandas as pd
 import time
 import json
@@ -133,7 +133,6 @@ def stock_standard_k(request, question_id):  # 标准k线图和?提示
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '%{}'"""
     dat = pd.read_sql(sql_tab_name.format(inp + 'hfq'), conn)
-    # breakpoint()
     if dat.shape[0] == 1:
         # print(dat['name'], dat.shape)
         sql = r"""select * from '{}'""".format(dat['name'].values[0])
@@ -362,23 +361,70 @@ def jia_zhi(request):
     quarter = request.GET.get('quarter', default='11')
     print(quarter)
     # quarter = json.loads(quarter).get('_value')
-    new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
-    if new_concat.shape[0] > 0:
-        new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
-        # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
-        col = []
-        for i, t in enumerate(new_concat.columns):
-            col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
-                        'sortable': True, 'style': 'padding: 0px 0px',
-                        'headerStyle': 'padding: 0px 0px'})
-        return JsonResponse({
-            'col': col,
-            'da': new_concat.values.tolist(),
-            'code2': new_concat['代码'].values.tolist(),
-            'name2': new_concat['名称'].values.tolist()
-        })
-    else:
-        print('非交易日?没有数据')
+    conn, cur = tool_db.get_conn_cur()
+    # 查询有没有这个表
+    sql_tab_name = """select name from sqlite_master where type='table' and
+    name like '{}'"""
+    dat = pd.read_sql(sql_tab_name.format('baostock_day_k%'), conn)
+    # 查询低ｐｅ＜２１股票
+    sql_pe = """select code,close from '{}' where date='{}' and
+        cast(peTTM as decimal(10,2))<{} and cast(peTTM as decimal(10,2))>{}"""
+    # 查询低ｐｅ＜２１股票中前一年去年ｐｅ＜２１的股票
+    sql_pe1 = """select date,code,close,peTTM from '{}' where
+        code in {} and date>'{}' and date<'{}'"""
+    day2 = quarter.replace('/', '-')
+    year_front = [
+        ('2022-04-01', '2022-04-10', 21),
+        ('2021-04-01', '2021-04-10', 31)
+    ]
+    for i, t in dat.iterrows():
+        print(t['name'], day2)
+        # 查询低ｐｅ＜２１股票  .str[3:]
+        dat_pe = pd.read_sql(sql_pe.format(t['name'], day2, 21, 0), conn)
+        print(dat_pe)
+        for x in year_front:
+            dat_pe_code = tuple(dat_pe['code'])
+            # 查询符合ｄａｔ＿ｐｅ<21的前一年数据
+            dat_pe21 = pd.read_sql(
+                sql_pe1.format(t['name'], dat_pe_code, x[0], x[1]),
+                conn
+            )
+            dat_pe21[["close", "peTTM"]] = dat_pe21[[
+                "close", "peTTM"]].astype(float)
+            # 计算下年每股收益
+            dat_pe21['shou_yi21'] = dat_pe21['close']/dat_pe21['peTTM']
+            # 去重
+            dat_pe21 = dat_pe21.drop_duplicates(subset='code')
+            print(dat_pe21)
+            # 默认内链接，取交集
+            result = pd.merge(dat_pe, dat_pe21[['code', 'shou_yi21']], on=['code'])
+            dat_pe = result[result['close'].astype(float)/result['shou_yi21'] < x[2]]
+            print(dat_pe)
+    cur.close()
+    conn.close()
+    # new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
+    # if new_concat.shape[0] > 0:
+    #     new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
+    #     # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
+    #     col = []
+    #     for i, t in enumerate(new_concat.columns):
+    #         col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+    #                     'sortable': True, 'style': 'padding: 0px 0px',
+    #                     'headerStyle': 'padding: 0px 0px'})
+    #     return JsonResponse({
+    #         'col': col,
+    #         'da': new_concat.values.tolist(),
+    #         'code2': new_concat['代码'].values.tolist(),
+    #         'name2': new_concat['名称'].values.tolist()
+    #     })
+    # else:
+    #     print('非交易日?没有数据')
+    return JsonResponse({
+        'col': [],
+        'da': [],
+        'code2': [],
+        'name2': []
+    })
 
 
 @tools.time_show  # 获取某天涨停股,技术股
@@ -413,10 +459,18 @@ def update_day_k(request):
     fq = request.GET.get('fq', default='11')
     # fq = json.loads(fq).get('_value')
     # print(fq)
-    if fq == '历史行情':
-        print(fq)
-        conn, cur = tool_db.get_conn_cur()
+    conn, cur = tool_db.get_conn_cur()
+    if fq == '更新交易股票':
         tool_akshare.stock_info_a_code_name_df(conn)  # 更新交易股票数据
+    elif fq == 'baostock历史k':
+        print(fq)
+        # 查询股票中文名
+        sql_china_name = """select * from stock_info_a_code_name
+        where code like '00%' or code like '30%' or code like '60%'"""
+        dat = pd.read_sql(sql_china_name, conn)
+        tool_baostock.baostock_history_k(dat, quarter.replace('/', '-'), conn)
+    elif fq == 'east历史k':
+        print(fq)
         # 查询股票中文名
         sql_china_name = """select * from stock_info_a_code_name
         where code like '00%' or code like '30%' or code like '60%'"""
@@ -429,7 +483,7 @@ def update_day_k(request):
                 t['code'],
                 conn=conn,
                 save='y',
-                end_date=quarter.replace('/', ''),
+                end_date=quarter,
                 fq=''
             )
             time.sleep(0.5)
@@ -451,6 +505,8 @@ def update_day_k(request):
         tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
     else:
         print('error')
+    cur.close()
+    conn.close()
     return JsonResponse({
             'col': [],
             'da': [],

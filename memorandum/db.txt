@@ -1,0 +1,42 @@
+数据库字段ｔｘｔ转数字
+sql_pe = """select code from '{}' where date='{}' and
+        cast(peTTM as decimal(10,2))<{} and cast(peTTM as decimal(10,2))>{}"""
+
+模糊查询，like instr
+select redeem_clause FROM kzz_80_120 WHERE INSTR(redeem_clause, '含最') <=0
+update dragon_tiger_k_copy set code=substr(code, 4,12)
+update dragon_tiger_k set open = round(open,2)
+
+SELECT dr.date,dr.code,dk.open
+FROM dragon_tiger AS dr LEFT JOIN dragon_tiger_k as dk
+ON dr.code = dk.code and dr.date = dk.date ORDER BY dr.date ASC
+
+cu.execute("INSERT INTO ymd_1280194006 (xd_2103) VALUES(?)", ("%s" % t["xd_2103"].encode(encoding='gbk'),))
+
+cu.execute("INSERT INTO ymd_1280194006 (xd_2103) VALUES(?)", (t["xd_2103"].encode(encoding='gbk'),))
+
+查询重复
+SELECT code, COUNT(*) AS aa from kzz_date_frequent GROUP BY code HAVING aa != 486
+select * from dragon_tiger_all_inst_lgt2k_181001_201118_copy a where rowid !=(select   max(rowid)
+     from dragon_tiger_all_inst_lgt2k_181001_201118_copy b where a.date=b.date and a.code=b.code)
+
+select count(*), max(code), date, code from dragon_tiger_all_inst_lgt2k_181001_201118_copy --列出重复的记录数，并列出他的name属性
+group by date,code
+having count(*) >1 --按num分组后找出表中num列重复，即出现次数大于一次
+
+删除重复
+delete from kzz_date_frequent where rowid !=
+(select max(rowid) from kzz_date_frequent b where
+kzz_date_frequent.da=b.da and kzz_date_frequent.code=b.code)
+
+
+data['y_v_log'] = (np.sqrt(245) * data['log_'].rolling(245).std()).round(3)
+data = data.loc[:, ['y_v_change', 'y_v_log', 'date']]
+print(data.values)
+"""加列"""
+#sql2 = r"""alter table '{}' add y_v_change number(6),add y_v_log number(6)""".format(code)
+"""批量更新"""
+sql3 = "UPDATE '{}' SET y_v_change=(?),y_v_log=(?) WHERE date=(?)".format(code)
+# val_list = [[-5.21, '2017-08-04'], [1.16, '2017-08-07']] 元组可能好点
+# val_list = [(-5.1, '2020-11-13 00:00:00'), (1.6, '2020-11-16 00:00:00')]
+cur.executemany(sql3, data.values)
