@@ -158,7 +158,7 @@ def stock_standard_k(request, question_id):  # 标准k线图和?提示
 
 
 @tools.time_show
-def vote(request, question_id):
+def vote(request, question_id):  # 业绩预告
     quarter = request.GET.get('quarter', default='11')
     quarter = json.loads(quarter).get('_value')
     print(quarter)
@@ -357,11 +357,35 @@ def stock_yjbb_em(request):  # 基本面 净资产收益率,总资产收益率,�
     })
 
 
+@tools.time_show  # 获取某天价值股
+def jia_zhi(request):
+    quarter = request.GET.get('quarter', default='11')
+    print(quarter)
+    # quarter = json.loads(quarter).get('_value')
+    new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
+    if new_concat.shape[0] > 0:
+        new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
+        # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
+        col = []
+        for i, t in enumerate(new_concat.columns):
+            col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+                        'sortable': True, 'style': 'padding: 0px 0px',
+                        'headerStyle': 'padding: 0px 0px'})
+        return JsonResponse({
+            'col': col,
+            'da': new_concat.values.tolist(),
+            'code2': new_concat['代码'].values.tolist(),
+            'name2': new_concat['名称'].values.tolist()
+        })
+    else:
+        print('非交易日?没有数据')
+
+
 @tools.time_show  # 获取某天涨停股,技术股
 def zhang_ting(request):
     quarter = request.GET.get('quarter', default='11')
-    quarter = json.loads(quarter).get('_value')
-    # print(quarter)
+    print(quarter)
+    # quarter = json.loads(quarter).get('_value')
     new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
     if new_concat.shape[0] > 0:
         new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
@@ -384,26 +408,52 @@ def zhang_ting(request):
 @tools.time_show  # 更新history day k线数据和在交易股票表
 def update_day_k(request):
     quarter = request.GET.get('quarter', default='11')
-    quarter = json.loads(quarter).get('_value')
-    print(quarter)
+    # quarter = json.loads(quarter).get('_value')
+    print(quarter.replace('/', ''))
     fq = request.GET.get('fq', default='11')
-    fq = json.loads(fq).get('_value')
+    # fq = json.loads(fq).get('_value')
     # print(fq)
-    if quarter:
-        if fq == '不复权':
-            print(fq)
-            # 东方财富网-沪深京 A 股当天实时行情数据
-            tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
-            # 实时行情转入不复权数据表
-            # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
-        elif fq == '后复权':
-            print(fq)
-            tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
-        else:
-            print('oop')
-            # 东方财富网-沪深京 A 股当天实时行情数据
-            tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
-            # 实时行情转入不复权数据表
-            # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
-            tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
-    return JsonResponse({})
+    if fq == '历史行情':
+        print(fq)
+        conn, cur = tool_db.get_conn_cur()
+        tool_akshare.stock_info_a_code_name_df(conn)  # 更新交易股票数据
+        # 查询股票中文名
+        sql_china_name = """select * from stock_info_a_code_name
+        where code like '00%' or code like '30%' or code like '60%'"""
+        dat = pd.read_sql(sql_china_name, conn)
+        # print(dat)
+        for i, t in dat.iloc[0:].iterrows():
+            print(i, t['name'].replace(' ', '').replace('*', ''), t['code'])
+            tool_akshare.history_k_single(
+                t['name'].replace(' ', '').replace('*', ''),
+                t['code'],
+                conn=conn,
+                save='y',
+                end_date=quarter.replace('/', ''),
+                fq=''
+            )
+            time.sleep(0.5)
+    elif fq == '实时行情':
+        print(fq)
+        # 东方财富网-沪深京 A 股当天实时行情数据
+        tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
+        # 实时行情转入不复权数据表
+        # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+    elif fq == '后复权':
+        print(fq)
+        tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
+    elif fq == '实时/后复':
+        print('oop')
+        # 东方财富网-沪深京 A 股当天实时行情数据
+        tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
+        # 实时行情转入不复权数据表
+        # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+        tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
+    else:
+        print('error')
+    return JsonResponse({
+            'col': [],
+            'da': [],
+            'code2': [],
+            'name2': []
+        })

@@ -30,7 +30,7 @@ def history_k_single(name2, code2, conn='', save='',
     import akshare as ak
     """
     目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
-    描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新, 当日收盘价请在收盘后获取
+    描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新,
     限量: 单次返回指定沪深京 A 股上市公司、指定周期和指定日期间的历史行情日频率数据
     """
 

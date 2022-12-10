@@ -156,7 +156,6 @@ def stock_zh_a_spot_em(save, day):
 
 # 更新交易股票数据
 def stock_info_a_code_name_df(conn):
-    import akshare as ak
     stock_info_a_code_name_df = ak.stock_info_a_code_name()
     stock_info_a_code_name_df.to_sql(
         'stock_info_a_code_name', con=conn,
@@ -166,7 +165,6 @@ def stock_info_a_code_name_df(conn):
 # 中报,年报分红配送
 def stock_fhps_em(save, qua, conn):
     import time
-    # conn, cur = gl_v.get_conn_cur()
     for i in tools.get_quarter_array()[:qua]:
         st = ak.stock_fhps_em(date=i)
         print("stock_fhps_em" + i)
@@ -182,12 +180,10 @@ def stock_fhps_em(save, qua, conn):
             st.to_sql("stock_fhps_em" + i, con=conn,
                       if_exists='replace', index=False)
         time.sleep(0.4)
-    # conn.close()
 
 
 # 合并季度年度分红送股表
 def concat_fhsg(save, conn):
-    # conn, cur = gl_v.get_conn_cur()
     # 查询有没有表
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '{}%'"""
@@ -336,3 +332,26 @@ def hfq_calu_total(fq2, flat):
         fq_factor3(t['name'].replace(' ', '').replace('*', ''), t['code'],
                    fq2, save='y', conn=conn)
     conn.close
+
+
+def history_k_single(name2, code2, conn='', save='',
+                     end_date='', fq=''):  # 获取数据并保存数据库
+    """
+    目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
+    描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新
+    限量: 单次返回指定沪深京 A 股上市公司、指定周期和指定日期间的历史行情日频率数据
+    """
+    stock_zh_a_hist_df = ak.stock_zh_a_hist(symbol=code2, period="daily",
+                                            start_date='',  end_date=end_date,
+                                            adjust=fq)
+    # print(stock_zh_a_hist_df)
+    if save == 'y':
+        if conn == '':
+            from . import tool_db
+            conn, cur = tool_db.get_conn_cur()
+            stock_zh_a_hist_df.to_sql(
+                name2+code2+fq, con=conn, if_exists='replace', index=False)
+            conn.close()
+        else:
+            stock_zh_a_hist_df.to_sql(
+                name2+code2+fq, con=conn, if_exists='replace', index=False)

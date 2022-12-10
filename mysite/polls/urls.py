@@ -16,6 +16,8 @@ urlpatterns = [
     path('<int:question_id>/vote/', views.vote, name='vote'),
     # ex: /polls/stockYjbbEm/
     path('stockYjbbEm/', views.stock_yjbb_em, name='stock_yjbb_em'),
+    # ex: /polls/jiazhi/
+    path('jiazhi/', views.jia_zhi, name='jia_zhi'),
     # ex: /polls/zhangTing/
     path('zhangTing/', views.zhang_ting, name='zhang_ting'),
     # ex: /polls/update_day_k/
