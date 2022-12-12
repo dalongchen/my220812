@@ -366,65 +366,81 @@ def jia_zhi(request):
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '{}'"""
     dat = pd.read_sql(sql_tab_name.format('baostock_day_k%'), conn)
-    # 查询低ｐｅ＜２１股票
-    sql_pe = """select code,close from '{}' where date='{}' and
-        cast(peTTM as decimal(10,2))<{} and cast(peTTM as decimal(10,2))>{}"""
+    # 查询低ｐｅ＜２１股票  利用市净率计算每股净资产
+    sql_pe = """select code,name,open,close,high,low,volume,amount,turn,
+        pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where date='{}' and
+        cast(peTTM as decimal(10,2))<{} and cast(peTTM as decimal(10,2))>{}
+        and (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>{}"""
     # 查询低ｐｅ＜２１股票中前一年去年ｐｅ＜２１的股票
-    sql_pe1 = """select date,code,close,peTTM from '{}' where
-        code in {} and date>'{}' and date<'{}'"""
+    sql_pe1 = """select code,close,peTTM from '{}' where code in {} and
+        date>'{}' and date<'{}' and
+        (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>0.04"""
     day2 = quarter.replace('/', '-')
     year_front = [
         ('2022-04-01', '2022-04-10', 21),
-        ('2021-04-01', '2021-04-10', 31)
+        ('2021-04-01', '2021-04-10', 31),
+        ('2020-04-01', '2020-04-10', 41),
+        ('2019-04-01', '2019-04-10', 51),
+        ('2018-04-01', '2018-04-10', 61),
     ]
     for i, t in dat.iterrows():
         print(t['name'], day2)
+        # print(sql_pe.format(t['name'], day2, 21, 0))
         # 查询低ｐｅ＜２１股票  .str[3:]
-        dat_pe = pd.read_sql(sql_pe.format(t['name'], day2, 21, 0), conn)
+        dat_pe = pd.read_sql(sql_pe.format(t['name'], day2, 21, 0, 0.1), conn)
+        dat_pe = dat_pe.replace('', 0)
+        dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].astype(float)      
         print(dat_pe)
-        for x in year_front:
+        for x in year_front[0:]:
+            print(x)
             dat_pe_code = tuple(dat_pe['code'])
             # 查询符合ｄａｔ＿ｐｅ<21的前一年数据
-            dat_pe21 = pd.read_sql(
+            dat_pe1 = pd.read_sql(
                 sql_pe1.format(t['name'], dat_pe_code, x[0], x[1]),
                 conn
             )
-            dat_pe21[["close", "peTTM"]] = dat_pe21[[
+            dat_pe1[["close", "peTTM"]] = dat_pe1[[
                 "close", "peTTM"]].astype(float)
+            # print(dat_pe1.dtypes)
             # 计算下年每股收益
-            dat_pe21['shou_yi21'] = dat_pe21['close']/dat_pe21['peTTM']
+            dat_pe1['shou_yi1'] = dat_pe1['close']/dat_pe1['peTTM']
             # 去重
-            dat_pe21 = dat_pe21.drop_duplicates(subset='code')
-            print(dat_pe21)
+            dat_pe1 = dat_pe1.drop_duplicates(subset='code')
+            # print('qu_cong', dat_pe1)
             # 默认内链接，取交集
-            result = pd.merge(dat_pe, dat_pe21[['code', 'shou_yi21']], on=['code'])
-            dat_pe = result[result['close'].astype(float)/result['shou_yi21'] < x[2]]
+            dat_pe1 = pd.merge(
+                dat_pe,
+                dat_pe1[['code', 'shou_yi1']],
+                on=['code']
+            )
+            # print(dat_pe1)
+            dat_pe = dat_pe1[dat_pe1['close']/dat_pe1['shou_yi1'] < x[2]]
+            del dat_pe['shou_yi1']
             print(dat_pe)
-    cur.close()
-    conn.close()
-    # new_concat = (tool_akshare.ak_zhang_ting(quarter)).iloc[:, 1:]
-    # if new_concat.shape[0] > 0:
-    #     new_concat.iloc[:, 2:8] = (new_concat.iloc[:, 2:8]).round(2)
-    #     # new_concat['涨跌幅'] = (new_concat['涨跌幅']).round(2)
-    #     col = []
-    #     for i, t in enumerate(new_concat.columns):
-    #         col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
-    #                     'sortable': True, 'style': 'padding: 0px 0px',
-    #                     'headerStyle': 'padding: 0px 0px'})
-    #     return JsonResponse({
-    #         'col': col,
-    #         'da': new_concat.values.tolist(),
-    #         'code2': new_concat['代码'].values.tolist(),
-    #         'name2': new_concat['名称'].values.tolist()
-    #     })
-    # else:
-    #     print('非交易日?没有数据')
-    return JsonResponse({
-        'col': [],
-        'da': [],
-        'code2': [],
-        'name2': []
-    })
+        cur.close()
+        conn.close()
+        if dat_pe.shape[0] > 0:
+            dat_pe = dat_pe.copy()
+            dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].round(2)
+            col = []
+            for i, t in enumerate(dat_pe.columns):
+                col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+                            'sortable': True, 'style': 'padding: 0px 0px',
+                            'headerStyle': 'padding: 0px 0px'})
+            return JsonResponse({
+                'col': col,
+                'da': dat_pe.values.tolist(),
+                'code2': dat_pe['code'].values.tolist(),
+                'name2': dat_pe['name'].values.tolist()
+            })
+        else:
+            print('非交易日?没有数据')
+            return JsonResponse({
+                'col': [],
+                'da': [],
+                'code2': [],
+                'name2': []
+            })
 
 
 @tools.time_show  # 获取某天涨停股,技术股
