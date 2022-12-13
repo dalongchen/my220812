@@ -1,3 +1,6 @@
+# import tool_db
+# import tools
+# import tool_east
 from . import tool_db, tools, tool_east
 import pandas as pd
 import akshare as ak
@@ -355,3 +358,82 @@ def history_k_single(name2, code2, conn='', save='',
         else:
             stock_zh_a_hist_df.to_sql(
                 name2+code2+fq, con=conn, if_exists='replace', index=False)
+
+
+# 获取年报季度报三大报表
+class AkYearQuaterTable(object):
+    def __init__(self):
+        pass
+
+    @tools.time_show  # east资产负债表,年
+    def stock_zcfz_em(self):
+        # import tool_db
+        # import tools
+        # import tool_east
+        """
+        19990930 'NoneType' object is not subscriptable=9
+        19970930
+        19940930
+        19920930
+        19920331
+        19910930
+        19910331
+        19900930
+        19900331
+        """
+        conn = tool_db.get_conn_cur()
+        arr = tools.get_quarter_array()
+        # 正常只需要更新最新前２个季度数据
+        for t in arr[0:2]:
+            try:
+                st = ak.stock_zcfz_em(date=t)
+                st.rename(columns={
+                    '资产-货币资金': '货币资金',
+                    '资产-应收账款': '应收账款',
+                    '资产-存货': '存货',
+                    '资产-总资产': '总资产',
+                    '资产-总资产同比': '总资产同比',
+                    '负债-应付账款': '应付账款',
+                    '负债-预收账款': '预收账款',
+                    '负债-总负债': '总负债',
+                    '负债-总负债同比': '总负债同比',
+                }, inplace=True)
+                # print(st)
+                print(t)
+                st.to_sql('stock_zcfz_em' + t, con=conn,
+                          if_exists='replace', index=False)
+                # time.sleep(0.5)
+            except TypeError as e:
+                print(t, e)
+        conn.close()
+
+    @tools.time_show  # east利润表,年
+    def stock_lrb_em(self):
+        # import akshare as ak
+        # import time
+        conn = tool_db.get_conn_cur()
+        arr = tools.get_quarter_array()
+        # 正常只需要更新最新前２个季度数据
+        for t in arr[0:2]:
+            try:
+                st = ak.stock_lrb_em(date=t)
+                st.rename(columns={
+                    '营业总支出-营业支出': '营业支出',
+                    '营业总支出-销售费用': '销售费用',
+                    '营业总支出-管理费用': '管理费用',
+                    '营业总支出-财务费用': '财务费用',
+                    '营业总支出-营业总支出': '营业总支出',
+                }, inplace=True)
+                print(t)
+                # print(st)
+                st.to_sql('stock_lrb_em' + t, con=conn,
+                          if_exists='replace', index=False)
+                # time.sleep(0.9)
+            except TypeError as e:
+                print(t, e)
+        conn.close()
+
+
+# sto = AkYearQuaterTable()
+# sto.stock_zcfz_em()  #  east资产负债表
+# sto.stock_lrb_em()  # east利润表

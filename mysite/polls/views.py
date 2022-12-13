@@ -361,7 +361,7 @@ def jia_zhi(request):
     quarter = request.GET.get('quarter', default='11')
     print(quarter)
     # quarter = json.loads(quarter).get('_value')
-    conn, cur = tool_db.get_conn_cur()
+    conn = tool_db.get_conn_cur()
     # 查询有没有这个表
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '{}'"""
@@ -389,7 +389,7 @@ def jia_zhi(request):
         # 查询低ｐｅ＜２１股票  .str[3:]
         dat_pe = pd.read_sql(sql_pe.format(t['name'], day2, 21, 0, 0.1), conn)
         dat_pe = dat_pe.replace('', 0)
-        dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].astype(float)      
+        dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].astype(float)
         print(dat_pe)
         for x in year_front[0:]:
             print(x)
@@ -416,8 +416,12 @@ def jia_zhi(request):
             # print(dat_pe1)
             dat_pe = dat_pe1[dat_pe1['close']/dat_pe1['shou_yi1'] < x[2]]
             del dat_pe['shou_yi1']
-            print(dat_pe)
-        cur.close()
+        print(dat_pe)
+        # 计算４年总资产收益率
+        y_5 = tools.get_quarter_array(f='前五年', day=quarter)
+        print(y_5, '=====')
+        for i, t in dat_pe[0:2].iterrows():
+            print(t['code'], t['name'])
         conn.close()
         if dat_pe.shape[0] > 0:
             dat_pe = dat_pe.copy()

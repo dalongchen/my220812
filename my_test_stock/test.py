@@ -1,5 +1,5 @@
 import sqlite3
-import global_variable as gl_v
+import my_t_stock.stock_tools as gl_v
 import pandas as pd
 
 
@@ -146,7 +146,7 @@ def stock_a_lg_indicator_local():  # 分析市盈市净股息
 
 
 @gl_v.time_show
-def history_m_table_name():
+def history_m_table_name():  # 修改数据库表名
     # import akshare as ak
     # import time
     conn, cur = gl_v.get_conn_cur()
@@ -204,8 +204,7 @@ def history_m_table_name():
 def history_k_day_add(f='', name2='', code2='', save='', end_date=''):
     """
     目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
-    描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新, 当日收盘价请在收盘后获取
-    限量: 单次返回指定沪深京 A 股上市公司、指定周期和指定日期间的历史行情日频率数据
+    描述: 东方财富-沪深京 A 股日频率数据;
     """
     conn, cur = gl_v.get_conn_cur()
     if f == 'one':
@@ -288,66 +287,6 @@ def stock_yjbb_em():
 
 
 # stock_yjbb_em()
-
-
-@gl_v.time_show  # east资产负债表,年
-def stock_zcfz_em():
-    import akshare as ak
-    import time
-    conn, cur = gl_v.get_conn_cur()
-    """notice修改列名
-        sql_zcfzb2 = "select * from {}"
-        da = pd.read_sql(sql_zcfzb2.format('stock_zcfz_em' + t), conn)
-        da.rename(columns={
-            '资产-货币资金': '货币资金',
-            '资产-应收账款': '应收账款',
-            '资产-存货': '存货',
-            '资产-总资产': '总资产',
-            '资产-总资产同比': '总资产同比',
-            '负债-应付账款': '应付账款',
-            '负债-预收账款': '预收账款',
-            '负债-总负债': '总负债',
-            '负债-总负债同比': '总负债同比',
-        }, inplace=True)
-        print(da)
-    """
-    arr = [
-        '20211231',
-        '20201231',
-        '20191231',
-        '20181231',
-        '20171231',
-        '20161231',
-        '20151231',
-        '20141231',
-        '20131231',
-        '20121231',
-        '20111231',
-        '20101231',
-        '20091231',
-        '20081231',
-        '20071231',
-        '20061231',
-        '20051231',
-        '20041231',
-        '20031231',
-        '20021231',
-        '20011231',
-        '20001231'
-    ]
-    for t in arr[1:]:
-        print(t)
-        st = ak.stock_zcfz_em(date=t)
-        # print(st)
-        time.sleep(0.5)
-        save = ''
-        if save == 'y':
-            st.to_sql('stock_zcfz_em' + t, con=conn,
-                      if_exists='replace', index=False)
-    conn.close()
-
-
-# stock_zcfz_em()
 
 
 @gl_v.time_show  # east利润表,年
@@ -800,4 +739,4 @@ def qc_replace():
     conn.close
 
 
-qc_replace()
+# qc_replace()

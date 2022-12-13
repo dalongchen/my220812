@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import sqlite3
-import global_variable as gl_v
+import my_t_stock.stock_tools as gl_v
 
 
 # 获取可转债正股股价

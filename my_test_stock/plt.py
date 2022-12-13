@@ -3,7 +3,7 @@ import sqlite3
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import global_variable as gl_v
+import my_t_stock.stock_tools as gl_v
 
 # matplotlib不支持显示中文的 显示中文需要一行代码设置字体
 mpl.rcParams['font.family'] = 'SimHei'

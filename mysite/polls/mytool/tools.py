@@ -1,25 +1,5 @@
 import pandas as pd
-# from . import tool_db
 from time import time
-
-
-# def stockk0(inp):  # 不复权
-#     conn, cur = tool_db.get_conn_cur()
-#     sql = r"""select 日期,收盘价,开盘价,最低价,最高价,成交量 from {} where
-#     成交量 != 0""".format(inp)
-#     dat2 = pd.read_sql(sql, conn)
-#     conn.close()
-#     dat2 = dat2.head(3)
-#     # print(dat2)
-#     dat1_ = dat2.iloc[:, 1:]
-#     dat1_pre = dat1_.values  # 未改变前的值
-#     dat1_.insert(4, 'i', dat1_.index.tolist())
-#     dat1_['max'] = dat1_.apply(
-#         lambda x: 1 if x['收盘价'] > x['开盘价'] else -1, axis=1)
-#     # print(dat1_.iloc[:,4:].values)
-#     dat3 = {'categoryData': dat2.日期.values.tolist(), 'values': dat1_pre.tolist(
-#     ), 'volumes': dat1_.iloc[:, 4:].values.tolist()}
-#     return dat3
 
 
 # big="baostock"加(sh. or sz.)code加(sh or sz) or (SZ or SH)
@@ -120,71 +100,42 @@ def add_column_concat_delete(df_new2021, df_new2020):
 
 
 # 获取季度数组
-def get_quarter_array():
-    return [
-        '20220630',
-        '20211231',
-        '20210630',
-        '20201231',
-        '20200630',
-        '20191231',
-        '20190630',
-        '20181231',
-        '20180630',
-        '20171231',
-        '20170630',
-        '20161231',
-        '20160630',
-        '20151231',
-        '20150630',
-        '20141231',
-        '20140630',
-        '20131231',
-        '20130630',
-        '20121231',
-        '20120630',
-        '20111231',
-        '20110630',
-        '20101231',
-        '20100630',
+def get_quarter_array(f='', day=''):
+    import datetime
+    if f == '前五年' and day:
+        now_year = int(day[:4])
+        m = int(day[5:7])
+        # print(day, now_year, '---------', m)
+        arr_quater, xx = get_quarter_array_son(now_year, m, 5)
+        # print(xx, arr_quater[xx:])
+        return arr_quater[xx:]
+    if f == '':
+        now = datetime.datetime.now()
+        # now = datetime.datetime.now().strftime('%Y-%m-%d')
+        now_year = now.year
+        m = now.month
+        _range = now_year - 1988
+        # 子函数
+        arr_quater, xx = get_quarter_array_son(now_year, m, _range)
+        # print(arr_quater[xx:-3])
+        return arr_quater[xx:-3]
 
-        '20091231',
-        '20090630',
-        '20081231',
-        '20080630',
-        '20071231',
-        '20070630',
-        '20061231',
-        '20060630',
-        '20051231',
-        '20050630',
-        '20041231',
-        '20040630',
-        '20031231',
-        '20030630',
-        '20021231',
-        '20020630',
-        '20011231',
-        '20010630',
-        '20001231',
-        '20000630',
 
-        '19991231',
-        '19990630',
-        '19981231',
-        '19980630',
-        '19971231',
-        '19970630',
-        '19961231',
-        '19960630',
-        '19951231',
-        '19950630',
-        '19941231',
-        '19940630',
-        '19931231',
-        '19930630',
-        '19921231',
-        '19920630',
-        '19911231',
-        '19901231'
-    ]
+# 子函数
+def get_quarter_array_son(now_year, m, _range):
+    if m > 0 and m < 4:
+        xx = 4
+    if m > 3 and m < 7:
+        xx = 3
+    if m > 6 and m < 10:
+        xx = 2
+    if m > 9 and m < 13:
+        xx = 1
+        # print(m, xx)
+    arr_quater = []
+    _quater = ['1231', '0930', '0630', '0331']
+    for ii in range(_range):
+        y = str(now_year-ii)
+        for x in _quater:
+            arr_quater.append(y + x)
+    return arr_quater, xx

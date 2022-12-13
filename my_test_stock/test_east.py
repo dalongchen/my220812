@@ -1,4 +1,4 @@
-import global_variable as gl_v
+import my_t_stock.stock_tools as gl_v
 
 
 # 东财，获取全部股票配股数据, save == "y":  # 是否保存
