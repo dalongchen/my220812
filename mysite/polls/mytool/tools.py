@@ -106,7 +106,7 @@ def get_quarter_array(f='', day=''):
         now_year = int(day[:4])
         m = int(day[5:7])
         # print(day, now_year, '---------', m)
-        arr_quater, xx = get_quarter_array_son(now_year, m, 5)
+        arr_quater, xx = get_quarter_array_son(now_year, m, 4)
         # print(xx, arr_quater[xx:])
         return arr_quater[xx:]
     if f == '':
