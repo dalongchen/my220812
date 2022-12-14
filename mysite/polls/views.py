@@ -357,7 +357,7 @@ def stock_yjbb_em(request):  # 基本面 净资产收益率,总资产收益率,�
     })
 
 
-@tools.time_show  # 获取某天价值股
+@tools.time_show  # 获取某天价值股,净资产收益率，总资产收益率，ｐｅ＜２１
 def jia_zhi(request):
     quarter = request.GET.get('quarter', default='11')
     print(quarter)
@@ -460,17 +460,20 @@ def update_day_k(request):
     fq = request.GET.get('fq', default='11')
     # fq = json.loads(fq).get('_value')
     # print(fq)
-    conn, cur = tool_db.get_conn_cur()
+    conn = tool_db.get_conn_cur()
     if fq == '更新交易股票':
         tool_akshare.stock_info_a_code_name_df(conn)  # 更新交易股票数据
     elif fq == 'baostock历史k':
         print(fq)
-        # 查询股票中文名
-        sql_china_name = """select * from stock_info_a_code_name
-        where code like '00%' or code like '30%' or code like '60%'"""
-        dat = pd.read_sql(sql_china_name, conn)
+        # 查询股票中文名""
+        dat = pd.read_sql(
+            """select * from stock_info_a_code_name where code like '00%'
+                or code like '30%' or code like '60%'""",
+            conn
+        )
         tool_baostock.baostock_history_k(dat, quarter.replace('/', '-'), conn)
     elif fq == 'east历史k':
+        return
         print(fq)
         # 查询股票中文名
         sql_china_name = """select * from stock_info_a_code_name
@@ -489,6 +492,7 @@ def update_day_k(request):
             )
             time.sleep(0.5)
     elif fq == '实时行情':
+        return
         print(fq)
         # 东方财富网-沪深京 A 股当天实时行情数据
         tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
@@ -498,6 +502,7 @@ def update_day_k(request):
         print(fq)
         tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
     elif fq == '实时/后复':
+        return
         print('oop')
         # 东方财富网-沪深京 A 股当天实时行情数据
         tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
@@ -506,7 +511,6 @@ def update_day_k(request):
         tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
     else:
         print('error')
-    cur.close()
     conn.close()
     return JsonResponse({
             'col': [],
