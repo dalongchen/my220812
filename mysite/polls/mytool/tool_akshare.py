@@ -1,7 +1,7 @@
-# import tool_db
-# import tools
-# import tool_east
-from . import tool_db, tools, tool_east
+import tool_db
+import tools
+import tool_east
+# from . import tool_db, tools, tool_east
 import pandas as pd
 import akshare as ak
 
@@ -367,9 +367,6 @@ class AkYearQuaterTable(object):
 
     @tools.time_show  # east资产负债表,年
     def stock_zcfz_em(self):
-        # import tool_db
-        # import tools
-        # import tool_east
         """
         19990930 'NoneType' object is not subscriptable=9
         19970930
@@ -409,7 +406,6 @@ class AkYearQuaterTable(object):
 
     @tools.time_show  # east利润表,年
     def stock_lrb_em(self):
-        # import akshare as ak
         # import time
         conn = tool_db.get_conn_cur()
         arr = tools.get_quarter_array()
@@ -433,7 +429,39 @@ class AkYearQuaterTable(object):
                 print(t, e)
         conn.close()
 
+    @tools.time_show  # 分红配送
+    def stock_fhps_em(self):
+        # import time
+        conn = tool_db.get_conn_cur()
+        # 获取ａｌｌ季度数组１９８９－＞
+        # ['19900930', '19900630', '19900331', '19891231']
+        arr = tools.get_quarter_array()[:-4]
+        # print(arr)
+        # return
+        # 正常只需要更新最新前２个季度数据
+        # for t in arr:
+        for t in arr[0:2]:
+            try:
+                print("stock_fhps_em" + t)
+                st = ak.stock_fhps_em(date=t)
+                st.rename(columns={
+                    '送转股份-送转总比例': '送转总比例',
+                    '送转股份-送转比例': '送转比例',
+                    '送转股份-转股比例': '转股比例',
+                    '现金分红-现金分红比例': '现金分红比例',
+                    '现金分红-股息率': '股息率',
+                }, inplace=True)
+                # print(st)
+                st.to_sql("stock_fhps_em" + t, con=conn,
+                          if_exists='replace', index=False)
+                # time.sleep(0.4)
+            except TypeError as e:
+                print(t, e)
+        conn.close()
 
-# sto = AkYearQuaterTable()
-# sto.stock_zcfz_em()  #  east资产负债表
-# sto.stock_lrb_em()  # east利润表
+
+# if __name__ == '__main__':
+    # sto = AkYearQuaterTable()
+    # sto.stock_zcfz_em()  #  east资产负债表
+    # sto.stock_lrb_em()  # east利润表
+    # sto.stock_fhps_em()  # 分红配送

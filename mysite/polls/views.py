@@ -391,7 +391,7 @@ def jia_zhi(request):
         dat_pe = pd.read_sql(sql_pe.format(t['name'], day2, 21, 0, 0.1), conn)
         dat_pe = dat_pe.replace('', 0)
         dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].astype(float)
-        print(dat_pe)
+        # print(dat_pe)
         for x in year_front[0:]:
             print(x)
             dat_pe_code = tuple(dat_pe['code'])
@@ -418,162 +418,14 @@ def jia_zhi(request):
             dat_pe = dat_pe1[dat_pe1['close']/dat_pe1['shou_yi1'] < x[2]]
             del dat_pe['shou_yi1']
         print(dat_pe)
-        # 计算年总资产收益率
-        y_ = tools.get_quarter_array(f='前五年', day=quarter)
-        print(y_, '=====')
-        # 查询返回季度第一个有没有这个表
-        table_ = pd.read_sql(
-            """select name from sqlite_master where type='table' and
-                name like '{}'""".format('stock_zcfz_em' + y_[0]),
-            conn
-        )
-        dat_pe_copy = dat_pe.copy()
-        for i, t in dat_pe[0:2].iterrows():
-            print(t['code'], t['name'])
-            if y_[0][:4] == '1231':  # 如果第一是年度
-                raise
-                if table_.shape[0] == 1:  # 如果表恰好有一个
-                    # 查询该表下面是否有这个股票的总资产数据
-                    zzc = pd.read_sql(
-                        """select 总资产 from {} where code='{}'
-                        """.format('stock_zcfz_em' + y_[0], t['code']),
-                        conn
-                    )
-                    if zzc.shape[0] == 1:  # 如果该股票在年度表里有数据
-                        # 查询年度利润表
-                        y_lir = pd.read_sql(
-                            """select 净利润 from {} where code='{}'
-                            """.format('stock_lrb_em' + y_[0], t['code']),
-                            conn
-                        )
-                        # 计算总资产收益率
-                        syl = y_lir/zzc
-                        if syl < 0.04:  # 总资产收益率小于０.０４，删除该行数据
-                            dat_pe_copy = dat_pe_copy.drop(labels=i)
-                    else:  # 如果该股票在年度表里有数据没有，则查下一季度
-                        # 查询该表下面是否有这个股票的总资产数据
-                        zzc = pd.read_sql(
-                            """select 总资产 from {} where code='{}'
-                            """.format('stock_zcfz_em' + y_[1], t['code']),
-                            conn
-                        )
-                        if zzc.shape[0] == 1:  # 如果该股票在年度表里有数据
-                            # 查询年度利润表
-                            y_lir = pd.read_sql(
-                                """select 净利润 from {} where code='{}'
-                                """.format('stock_lrb_em' + y_[1], t['code']),
-                                conn
-                            )
-                            # 计算总资产收益率
-                            syl = y_lir/zzc
-                            if syl < 0.04:  # 总资产收益率小于０.０４，删除该行数据
-                                dat_pe_copy = dat_pe_copy.drop(labels=i)
-                        else:  # 如果该股票在年度表里有数据没有，则查下一季度
-                            views_son.jia_zhi_son_zzcsyl()
-                            # 查询该表下面是否有这个股票的总资产数据
-                            zzc = pd.read_sql(
-                                """select 总资产 from {} where code='{}'
-                                """.format('stock_zcfz_em' + y_[2], t['code']),
-                                conn
-                            )
-                            if zzc.shape[0] == 1:  # 如果该股票在年度表里有数据
-                                # 查询年度利润表
-                                y_lir = pd.read_sql(
-                                    """select 净利润 from {} where code='{}'
-                                    """.format('stock_lrb_em' + y_[2], t['code']),
-                                    conn
-                                )
-                                # 计算总资产收益率
-                                syl = y_lir/zzc
-                                if syl < 0.04:  # 总资产收益率小于０.０４，删除该行数据
-                                    dat_pe_copy = dat_pe_copy.drop(labels=i)
-                            else:  # 如果该股票在年度表里有数据没有，则查下一季度
-                                raise
-                else:  # 如果没有这个表，转入下一季度
-                    pass
-            else:  # 如果第一是不是年度
-                if table_.shape[0] == 1:  # 如果表恰好有一个
-                    # 查询该表下面是否有这个股票的总资产数据
-                    zzc = pd.read_sql(
-                        """select 总资产 from {} where code='{}'
-                        """.format('stock_zcfz_em' + y_[0], t['code']),
-                        conn
-                    )
-                    if zzc.shape[0] == 1:  # 如果该股票在年度表里有数据
-                        # 查询年度利润表
-                        y_lir = pd.read_sql(
-                            """select 净利润 from {} where code='{}'
-                            """.format('stock_lrb_em' + y_[0], t['code']),
-                            conn
-                        )
-                        # 计算总资产收益率
-                        syl = y_lir/zzc
-                        if syl < 0.04:  # 总资产收益率小于０.０４，删除该行数据
-                            dat_pe_copy = dat_pe_copy.drop(labels=i)
-                    else:  # 如果该股票在年度表里有数据没有，则查下一季度
-                        # 查询该表下面是否有这个股票的总资产数据
-                        zzc = pd.read_sql(
-                            """select 总资产 from {} where code='{}'
-                            """.format('stock_zcfz_em' + y_[1], t['code']),
-                            conn
-                        )
-                        if zzc.shape[0] == 1:  # 如果该股票在年度表里有数据
-                            # 查询年度利润表
-                            y_lir = pd.read_sql(
-                                """select 净利润 from {} where code='{}'
-                                """.format('stock_lrb_em' + y_[1], t['code']),
-                                conn
-                            )
-                            # 计算总资产收益率
-                            syl = y_lir/zzc
-                            if syl < 0.04:  # 总资产收益率小于０.０４，删除该行数据
-                                dat_pe_copy = dat_pe_copy.drop(labels=i)
-                        else:  # 如果该股票在年度表里有数据没有，则查下一季度
-                            views_son.jia_zhi_son_zzcsyl()
-                            # 查询该表下面是否有这个股票的总资产数据
-                            zzc = pd.read_sql(
-                                """select 总资产 from {} where code='{}'
-                                """.format('stock_zcfz_em' + y_[2], t['code']),
-                                conn
-                            )
-                            if zzc.shape[0] == 1:  # 如果该股票在年度表里有数据
-                                # 查询年度利润表
-                                y_lir = pd.read_sql(
-                                    """select 净利润 from {} where code='{}'
-                                    """.format('stock_lrb_em' + y_[2], t['code']),
-                                    conn
-                                )
-                                # 计算总资产收益率
-                                syl = y_lir/zzc
-                                if syl < 0.04:  # 总资产收益率小于０.０４，删除该行数据
-                                    dat_pe_copy = dat_pe_copy.drop(labels=i)
-                            else:  # 如果该股票在年度表里有数据没有，则查下一季度
-                                raise
-                else:  # 如果没有这个表，转入下一季度
-                    pass
+        # 计算符合年总资产收益率的股票
+        dat_pe = views_son.cal_zzcsyl(quarter, conn, dat_pe)
+        dat_pe['code'] = dat_pe['code'].str[3:]
+        # dat_pe = dat_pe.copy()
+        dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].round(2)
+        # print(dat_pe)
         conn.close()
-        if dat_pe.shape[0] > 0:
-            dat_pe = dat_pe.copy()
-            dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].round(2)
-            col = []
-            for i, t in enumerate(dat_pe.columns):
-                col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
-                            'sortable': True, 'style': 'padding: 0px 0px',
-                            'headerStyle': 'padding: 0px 0px'})
-            return JsonResponse({
-                'col': col,
-                'da': dat_pe.values.tolist(),
-                'code2': dat_pe['code'].values.tolist(),
-                'name2': dat_pe['name'].values.tolist()
-            })
-        else:
-            print('非交易日?没有数据')
-            return JsonResponse({
-                'col': [],
-                'da': [],
-                'code2': [],
-                'name2': []
-            })
+        return tools.view_return_response(dat_pe, JsonResponse)
 
 
 @tools.time_show  # 获取某天涨停股,技术股

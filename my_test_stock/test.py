@@ -289,61 +289,6 @@ def stock_yjbb_em():
 # stock_yjbb_em()
 
 
-@gl_v.time_show  # east利润表,年
-def stock_lrb_em():
-    import akshare as ak
-    import time
-    conn, cur = gl_v.get_conn_cur()
-    """修改列名
-        da = pd.read_sql(sql_lrb.format(t['name']), conn)
-        da.rename(columns={
-            '营业收入-营业收入': '营业收入',
-            '营业收入-同比增长': '营收同比',
-            '营业收入-季度环比增长': '营收季度环比',
-            '净利润-净利润': '净利润',
-            '净利润-同比增长': '净利同比',
-            '净利润-季度环比增长': '净利季度环比',
-        }, inplace=True)
-    """
-    arr = [
-        '20211231',
-        '20201231',
-        '20191231',
-        '20181231',
-        '20171231',
-        '20161231',
-        '20151231',
-        '20141231',
-        '20131231',
-        '20121231',
-        '20111231',
-        '20101231',
-        '20091231',
-        '20081231',
-        '20071231',
-        '20061231',
-        '20051231',
-        '20041231',
-        '20031231',
-        '20021231',
-        '20011231',
-        '20001231'
-    ]
-    for t in arr[1:]:
-        print(t)
-        st = ak.stock_lrb_em(date=t)
-        print(st)
-        save = ''
-        if save == 'y':
-            st.to_sql('stock_lrb_em' + t, con=conn,
-                      if_exists='replace', index=False)
-        time.sleep(0.9)
-    conn.close()
-
-
-# stock_lrb_em()
-
-
 @gl_v.time_show  # 构建自己的季度净资产收益率,总资产收益率
 def get_my_quarter():
     conn, cur = gl_v.get_conn_cur()
@@ -444,32 +389,6 @@ def update_column():
 
 
 # update_column()
-
-
-@gl_v.time_show  # 中报,年报分红配送
-def stock_fhps_em(save, qua):
-    import akshare as ak
-    import time
-    conn, cur = gl_v.get_conn_cur()
-    for i in gl_v.get_quarter_array(f='year_middle')[:qua]:
-        st = ak.stock_fhps_em(date=i)
-        print("stock_fhps_em" + i)
-        st.rename(columns={
-            '送转股份-送转总比例': '送转总比例',
-            '送转股份-送转比例': '送转比例',
-            '送转股份-转股比例': '转股比例',
-            '现金分红-现金分红比例': '现金分红比例',
-            '现金分红-股息率': '股息率',
-        }, inplace=True)
-        print(st)
-        if save == 'y':
-            st.to_sql("stock_fhps_em" + i, con=conn,
-                      if_exists='replace', index=False)
-        time.sleep(0.4)
-    conn.close()
-
-
-# stock_fhps_em()
 
 
 @gl_v.time_show  # 地址: http://data.eastmoney.com/xg/pg/ 配股

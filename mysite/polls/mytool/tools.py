@@ -102,14 +102,14 @@ def add_column_concat_delete(df_new2021, df_new2020):
 # 获取季度数组
 def get_quarter_array(f='', day=''):
     import datetime
-    if f == '前五年' and day:
+    if f and day:  # 获取指定日子后的季度
         now_year = int(day[:4])
         m = int(day[5:7])
         # print(day, now_year, '---------', m)
-        arr_quater, xx = get_quarter_array_son(now_year, m, 4)
+        arr_quater, xx = get_quarter_array_son(now_year, m, f)
         # print(xx, arr_quater[xx:])
         return arr_quater[xx:]
-    if f == '':
+    if f == '':  # 获取当下日子后的季度－＞1989
         now = datetime.datetime.now()
         # now = datetime.datetime.now().strftime('%Y-%m-%d')
         now_year = now.year
@@ -139,3 +139,27 @@ def get_quarter_array_son(now_year, m, _range):
         for x in _quater:
             arr_quater.append(y + x)
     return arr_quater, xx
+
+
+# view子函数，返回列，和页面数据
+def view_return_response(dat_pe, JsonResponse):
+    if dat_pe.shape[0] > 0:
+        col = []
+        for i, t in enumerate(dat_pe.columns):
+            col.append({'name': i, 'align': 'left', 'label': t, 'field': i,
+                        'sortable': True, 'style': 'padding: 0px 0px',
+                        'headerStyle': 'padding: 0px 0px'})
+        return JsonResponse({
+            'col': col,
+            'da': dat_pe.values.tolist(),
+            'code2': dat_pe['code'].values.tolist(),
+            'name2': dat_pe['name'].values.tolist()
+        })
+    else:
+        print('非交易日?没有数据')
+        return JsonResponse({
+            'col': [],
+            'da': [],
+            'code2': [],
+            'name2': []
+        })
