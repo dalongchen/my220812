@@ -131,9 +131,10 @@ def stock_zh_a_spot_em_to_bfq(save, day):
     conn.close
 
 
-# 目标地址: http://quote.eastmoney.com/center/gridlist.html#hs_a_board
-# 东方财富网-沪深京 A 股-实时行情数据
+# http://quote.eastmoney.com/center/gridlist.html#hs_a_board
+# 前台页面已经作废的方法， A 股-实时行情数据
 def stock_zh_a_spot_em(save, day):
+    return
     conn, cur = tool_db.get_conn_cur()
     sql_price = """select * from '{}' where 日期='{}'"""
     data2 = pd.read_sql(sql_price.format(
@@ -165,28 +166,28 @@ def stock_info_a_code_name_df(conn):
         if_exists='replace', index=False)
 
 
-# 中报,年报分红配送
-def stock_fhps_em(save, qua, conn):
-    import time
-    for i in tools.get_quarter_array()[:qua]:
-        st = ak.stock_fhps_em(date=i)
-        print("stock_fhps_em" + i)
-        st.rename(columns={
-            '送转股份-送转总比例': '送转总比例',
-            '送转股份-送转比例': '送转比例',
-            '送转股份-转股比例': '转股比例',
-            '现金分红-现金分红比例': '现金分红比例',
-            '现金分红-股息率': '股息率',
-        }, inplace=True)
-        print(st)
-        if save == 'y':
-            st.to_sql("stock_fhps_em" + i, con=conn,
-                      if_exists='replace', index=False)
-        time.sleep(0.4)
+# # 中报,年报分红配送
+# def stock_fhps_em(save, qua, conn):
+#     import time
+#     for i in tools.get_quarter_array()[:qua]:
+#         st = ak.stock_fhps_em(date=i)
+#         print("stock_fhps_em" + i)
+#         st.rename(columns={
+#             '送转股份-送转总比例': '送转总比例',
+#             '送转股份-送转比例': '送转比例',
+#             '送转股份-转股比例': '转股比例',
+#             '现金分红-现金分红比例': '现金分红比例',
+#             '现金分红-股息率': '股息率',
+#         }, inplace=True)
+#         print(st)
+#         if save == 'y':
+#             st.to_sql("stock_fhps_em" + i, con=conn,
+#                       if_exists='replace', index=False)
+#         time.sleep(0.4)
 
 
 # 合并季度年度分红送股表
-def concat_fhsg(save, conn):
+def concat_fhsg(conn):
     # 查询有没有表
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '{}%'"""
@@ -197,22 +198,24 @@ def concat_fhsg(save, conn):
         # print(t['name'])
         d_fhsg = pd.concat([d_fhsg, da], axis=0)  # 纵向合并
     # print(d_fhsg)
-    if save == 'y':
-        d_fhsg.to_sql('fhsg_total', con=conn,
-                      if_exists='replace', index=False)
+    # if save == 'y':
+    d_fhsg.to_sql('fhsg_total', con=conn,
+                  if_exists='replace', index=False)
     # conn.close()
 
 
 # 经典计算个股复权
-def fq_factor3(name2, code, fq, save, conn):
+def fq_factor3(code, dat2, fq, conn):
     # 查询是否有分红送股
-    sql_s = r"""select 送转总比例,现金分红比例,除权除息日 as 除权日 from {} where 代码='{}'
-    and 方案进度='实施分配' and 除权除息日!='Null'"""
-    dat = pd.read_sql(sql_s.format('fhsg_total', code), conn).fillna(0)
+    dat = pd.read_sql(
+        r"""select 送转总比例,现金分红比例,除权除息日 as 除权日 from {} where 代码='{}'
+        and 方案进度='实施分配' and 除权除息日!='Null'""".format('fhsg_total', code[3:]),
+        conn
+    ).fillna(0)
     # print(dat)
     # 查询是否有配股
-    sql_peigu = r"""select 配股比,配股价,除权日 from {} where 代码='{}'"""
-    da = pd.read_sql(sql_peigu.format('east_history_peigu', code), conn)
+    da = pd.read_sql(r"""select 配股比,配股价,除权日 from {} where 代码='{}'
+        """.format('east_history_peigu', code), conn)
     # 获取分红送股和配股中日期相同的数据
     result = pd.merge(dat, da, on='除权日')
     k = result.pop("除权日")
@@ -237,17 +240,17 @@ def fq_factor3(name2, code, fq, save, conn):
                 da = da.drop(labels=con_day2.index)
                 # print(dat.loc[con_day.index])
         dat = pd.concat([dat, da], axis=0)  # 纵向合并
-    if code == '000038':
-        con_ = dat.loc[
-                        dat['除权日'] == 0
-                    ]
-        dat.loc[con_.index] = [3, 0, 0, 0, '2009-05-04']
+    # if code == '000038':
+    #     con_ = dat.loc[
+    #                     dat['除权日'] == 0
+    #                 ]
+    #     dat.loc[con_.index] = [3, 0, 0, 0, '2009-05-04']
         # print(con_)
     dat = dat.sort_values(by="除权日", ignore_index=True)  # 排序
     # print(dat)
     # 查询除权时收盘价...
-    sql_price = r"""select * from {}"""
-    d = pd.read_sql(sql_price.format(name2 + code), conn)
+    # sql_price = r"""select * from {}"""
+    # d = pd.read_sql(sql_price.format(name2 + code), conn)
     if dat.shape[0] > 0:
         ps_total = 1  # 送股总比
         pg_total = 1  # 配股总比
@@ -263,10 +266,11 @@ def fq_factor3(name2, code, fq, save, conn):
             if i < (dat.shape[0]-1):
                 hcqr = dat.loc[i+1, '除权日']
                 # 查询收盘价
-                day_ = d.loc[d['日期'] >= cqr]
-                day_ = day_.loc[day_['日期'] < hcqr]
+                day_ = dat2.loc[dat2['date'] >= cqr]
+                day_ = day_.loc[day_['date'] < hcqr]
             else:
-                day_ = d.loc[d['日期'] >= cqr]
+                day_ = dat2.loc[dat2['date'] >= cqr]
+                # day_ = d.loc[d['date'] >= cqr]
             # if day_.shape[0] < 2:
             #     if (s['配股比'] and s['配股价'] and
             #        (not s['现金分红比例']) and (not s['送转总比例'])):
@@ -281,64 +285,90 @@ def fq_factor3(name2, code, fq, save, conn):
             pg_total_amount += pg_total*ps_total*(s['配股比']/10)*s['配股价']
             pg_total *= (1+s['配股比']/10)
             open_ = (
-                day_['开盘']*ps_total*pg_total +
+                day_['open']*ps_total*pg_total +
                 fh_total -
                 pg_total_amount
             )
             close_ = (
-                day_['收盘']*ps_total*pg_total +
+                day_['close']*ps_total*pg_total +
                 fh_total -
                 pg_total_amount
             )
             high_ = (
-                day_['最高']*ps_total*pg_total +
+                day_['high']*ps_total*pg_total +
                 fh_total -
                 pg_total_amount
             )
             low_ = (
-                day_['最低']*ps_total*pg_total +
+                day_['low']*ps_total*pg_total +
                 fh_total -
                 pg_total_amount
             )
             # print(close_)
-            d.loc[day_.index, ['开盘']] = open_
-            d.loc[day_.index, ['收盘']] = close_
-            d.loc[day_.index, ['最高']] = high_
-            d.loc[day_.index, ['最低']] = low_
+            dat2.loc[day_.index, ['open']] = open_
+            dat2.loc[day_.index, ['close']] = close_
+            dat2.loc[day_.index, ['high']] = high_
+            dat2.loc[day_.index, ['low']] = low_
+            # d.loc[day_.index, ['open']] = open_
+            # d.loc[day_.index, ['close']] = close_
+            # d.loc[day_.index, ['high']] = high_
+            # d.loc[day_.index, ['low']] = low_
             # print(d.loc[day_.index])
         # print(d)
-    if save == 'y':
-        d.to_sql(name2 + code + fq, con=conn,
-                 if_exists='replace', index=False)
+    dat2.to_sql(code + fq, con=conn, if_exists='replace', index=False)
+    return dat2
 
 
-# 计算后复权数据表
-def hfq_calu_total(fq2, flat):
-    # flat = ''
-    conn, cur = tool_db.get_conn_cur()
-    if flat:
-        stock_info_a_code_name_df(conn)  # 更新交易股票数据
-        # not stock_em_pg()  # 更新配股数据
-        tool_east.east_history_peigu_data(save='y', conn=conn)
-        # 更新中报,年报分红配送(最近2季度)
-        stock_fhps_em(save='y', qua=2, conn=conn)
-        # 合并季度年度分红送股表
-        concat_fhsg(save='y', conn=conn)
+# 查询单个票未复权数据
+def get_code_bfq(inp2, conn):
+    # 查询有baostock all表
+    dat_t = pd.read_sql(
+        """select name from sqlite_master where type='table' and name
+        like '{}'""".format('baostock_day_k%'),
+        conn
+    )
+    # print()
+    dat2 = pd.DataFrame()
+    for i, t in dat_t[0:].iterrows():
+        print(t['name'])
+        dat_ = pd.read_sql(
+            r"""select date,open,close,low,high,volume,amount,turn,
+            pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where code='{}'
+            """.format(t['name'], inp2),
+            conn
+        )
+        dat2 = pd.concat([dat2, dat_], axis=0, ignore_index=True)
+    dat2.iloc[:, 1:] = dat2.iloc[:, 1:].replace('', 0).astype(float)
+    return dat2
+
+
+# 计算后复权数据表，只计算单个股票，全部股票暂停
+def hfq_calu_total(code2, dat2, conn, fq2):
+    # 更新配股数据 not stock_em_pg()
+    # tool_east.east_history_peigu_data(conn=conn)
+    # 更新中报,年报分红配送(最近2季度)
+    # stock_fhps_em(save='y', qua=2, conn=conn)
+    # 合并季度年度分红送股表
+    # concat_fhsg(conn=conn)
+    dat3 = fq_factor3(code2, dat2, fq2, conn=conn)
+    return dat3
     # 查询股票中文名
-    sql_china_name = """select * from stock_info_a_code_name
-    where code like '00%' or code like '30%' or code like '60%'"""
-    dat = pd.read_sql(sql_china_name, conn)
-    # print(dat)
-    for i, t in dat.iloc[0:].iterrows():
-        print(i, t['name'].replace(' ', '').replace('*', ''), t['code'])
-        # 经典计算复权
-        fq_factor3(t['name'].replace(' ', '').replace('*', ''), t['code'],
-                   fq2, save='y', conn=conn)
-    conn.close
+    # sql_china_name = """select * from stock_info_a_code_name
+    # where code like '00%' or code like '30%' or code like '60%'"""
+    # dat = pd.read_sql(sql_china_name, conn)
+    # # print(dat)
+    # for i, t in dat.iloc[0:].iterrows():
+    #     print(i, t['name'].replace(' ', '').replace('*', ''), t['code'])
+    #     # 经典计算复权
+    #     fq_factor3(t['name'].replace(' ', '').replace('*', ''), t['code'],
+    #                fq2, save='y', conn=conn)
+    # conn.close
 
 
+# 前台页面已经作废的方法
 def history_k_single(name2, code2, conn='', save='',
                      end_date='', fq=''):  # 获取数据并保存数据库
+    return
     """
     目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
     描述: 东方财富-沪深京 A 股日频率数据; 历史数据按日频率更新
@@ -381,6 +411,7 @@ class AkYearQuaterTable(object):
         conn = tool_db.get_conn_cur()
         arr = tools.get_quarter_array()
         # 正常只需要更新最新前２个季度数据
+        # for t in arr[0:]:
         for t in arr[0:2]:
             try:
                 st = ak.stock_zcfz_em(date=t)
@@ -410,7 +441,8 @@ class AkYearQuaterTable(object):
         conn = tool_db.get_conn_cur()
         arr = tools.get_quarter_array()
         # 正常只需要更新最新前２个季度数据
-        for t in arr[0:2]:
+        # for t in arr[0:2]:
+        for t in arr[0:]:
             try:
                 st = ak.stock_lrb_em(date=t)
                 st.rename(columns={
@@ -461,7 +493,7 @@ class AkYearQuaterTable(object):
 
 
 # if __name__ == '__main__':
-    # sto = AkYearQuaterTable()
-    # sto.stock_zcfz_em()  #  east资产负债表
+#     sto = AkYearQuaterTable()
+    # sto.stock_zcfz_em()  # east资产负债表
     # sto.stock_lrb_em()  # east利润表
     # sto.stock_fhps_em()  # 分红配送

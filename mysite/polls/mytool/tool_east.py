@@ -1,6 +1,6 @@
 
 
-# 自己写,东财，输入代码获取股票k线数据 前复权, save == "y":  # 是否保存,fq=1前，=2后复权
+# 自己写,东财，输入代码获取股票k线数据 前复权, # 是否保存,fq=1前，=2后复权
 def east_history_k_data(code, fq, save=''):
     """http://quote.eastmoney.com/concept/sh603233.html#fschart-k"""
     import pandas as pd
@@ -51,8 +51,8 @@ def east_history_k_data(code, fq, save=''):
             conn.close()
 
 
-# 东财，获取全部股票配股数据, save == "y":  # 是否保存
-def east_history_peigu_data(save, conn):
+# 东财，获取全部股票配股数据
+def east_history_peigu_data(conn):
     """https://data.eastmoney.com/xg/pg/"""
     import pandas as pd
     import requests
@@ -66,17 +66,14 @@ def east_history_peigu_data(save, conn):
     pages = result2.get('pages', '')
     print(pages)
     if pages:
-        # conn, cur = gl_v.get_conn_cur()
         for i in range(1, pages+1):
             print(i)
             if i > 1:
-                # break
                 result2 = json.loads(requests.get(net.format(i)).text)
                 result2 = result2.get('result', '')
             data_t = result2.get('data', '')
             if data_t:
                 data_t = pd.DataFrame(data_t)
-                # print(data_t)
                 data_t.rename(columns={
                     'SECURITY_CODE': '代码',
                     'SECURITY_NAME_ABBR': '名称',
@@ -88,7 +85,6 @@ def east_history_peigu_data(save, conn):
                     'EQUITY_RECORD_DATE': '登记日',
                     'EX_DIVIDEND_DATE': '除权日',
                 }, inplace=True)
-                # print(data_t)
                 data_t = data_t[[
                     '代码',
                     '名称',
@@ -100,16 +96,14 @@ def east_history_peigu_data(save, conn):
                     '登记日',
                     '除权日',
                 ]]
-                # print(data_t)
                 data_t['登记日'] = data_t['登记日'].str[:10]
                 data_t['除权日'] = data_t['除权日'].str[:10]
                 print(data_t)
-                if save == "y":  # 是否保存
-                    if i == 1:  # 第一页时重新建表,不是第一页就add数据
-                        data_t.to_sql('east_history_peigu', con=conn,
-                                      if_exists='replace', index=False)
-                    else:
-                        data_t.to_sql('east_history_peigu', con=conn,
-                                      if_exists='append', index=False)
+                if i == 1:  # 第一页时重新建表,不是第一页就add数据
+                    data_t.to_sql('east_history_peigu', con=conn,
+                                  if_exists='replace', index=False)
+                else:
+                    data_t.to_sql('east_history_peigu', con=conn,
+                                  if_exists='append', index=False)
             time.sleep(0.5)
         # conn.close()

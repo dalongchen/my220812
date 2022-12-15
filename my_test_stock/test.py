@@ -1,9 +1,9 @@
 import sqlite3
-import my_t_stock.stock_tools as gl_v
+import tools
 import pandas as pd
 
 
-@gl_v.time_show
+@tools.time_show
 def history_volatility(db='',
                        sql="select 日期,涨跌幅 from 'df601398hfq'"):
     # 连接数据库，如果不存在，则自动创建
@@ -21,7 +21,7 @@ def history_volatility(db='',
 # history_volatility(gl_v.db_path_poll)
 
 
-@gl_v.time_show
+@tools.time_show
 def history_test(last_day, save=''):
     import akshare as ak
     import time
@@ -53,7 +53,7 @@ def history_test(last_day, save=''):
 # history_test(last_day='20221105',save='y')
 
 
-@gl_v.time_show
+@tools.time_show
 def history_divident_test(save=''):  # 下载股票分红
     import akshare as ak
     import time
@@ -77,7 +77,7 @@ def history_divident_test(save=''):  # 下载股票分红
 # history_divident_test(save ='y')
 
 
-@gl_v.time_show
+@tools.time_show
 def history_divident_test_local():  # 分析股票分红
     conn = sqlite3.connect(gl_v.db_path_poll)
     # cur=conn.cursor()
@@ -99,7 +99,7 @@ def history_divident_test_local():  # 分析股票分红
 # history_divident_test_local()
 
 
-@gl_v.time_show
+@tools.time_show
 def stock_a_lg_indicator(save=''):  # 下载市盈市净股息
     import akshare as ak
     import time
@@ -123,7 +123,7 @@ def stock_a_lg_indicator(save=''):  # 下载市盈市净股息
 # stock_a_lg_indicator(save='y')
 
 
-@gl_v.time_show
+@tools.time_show
 def stock_a_lg_indicator_local():  # 分析市盈市净股息
     conn = sqlite3.connect(gl_v.db_path_poll)
     # cur=conn.cursor()
@@ -145,7 +145,7 @@ def stock_a_lg_indicator_local():  # 分析市盈市净股息
 # stock_a_lg_indicator_local()
 
 
-@gl_v.time_show
+@tools.time_show
 def history_m_table_name():  # 修改数据库表名
     # import akshare as ak
     # import time
@@ -200,7 +200,7 @@ def history_m_table_name():  # 修改数据库表名
 # history_m_table_name()
 
 
-@gl_v.time_show
+@tools.time_show
 def history_k_day_add(f='', name2='', code2='', save='', end_date=''):
     """
     目标地址: http://quote.eastmoney.com/concept/sh603777.html?from=classic(示例)
@@ -244,7 +244,7 @@ def history_k_day_add(f='', name2='', code2='', save='', end_date=''):
 # history_k_day_add(f='mult', save='y', end_date='20221125')  # f='mult'-mor个股票
 
 
-@gl_v.time_show  # 业绩报表,年
+@tools.time_show  # 业绩报表,年
 def stock_yjbb_em():
     import akshare as ak
     import time
@@ -289,7 +289,7 @@ def stock_yjbb_em():
 # stock_yjbb_em()
 
 
-@gl_v.time_show  # 构建自己的季度净资产收益率,总资产收益率
+@tools.time_show  # 构建自己的季度净资产收益率,总资产收益率
 def get_my_quarter():
     conn, cur = gl_v.get_conn_cur()
     arr = gl_v.get_quarter_array()
@@ -326,7 +326,7 @@ def get_my_quarter():
 # get_my_quarter()
 
 
-@gl_v.time_show  # 新股申购日期
+@tools.time_show  # 新股申购日期
 def stock_xgsglb_em():
     import akshare as ak
     conn, cur = gl_v.get_conn_cur()
@@ -343,27 +343,34 @@ def stock_xgsglb_em():
 # stock_xgsglb_em()
 
 
-@gl_v.time_show  # 删除表
-def delete_table():
-    conn, cur = gl_v.get_conn_cur()
+@tools.time_show  # 删除表
+def delete_table(f):
+    """stock_zcfz_em20160331
+    stock_zcfz_em20060331
+    stock_zcfz_em19960331
+    stock_lrb_em20160331
+    stock_lrb_em20060331
+    stock_lrb_em19960331"""
+    conn = tools.get_conn_cur()
     # 查询有没有这个表
-    sql_tab_name = """select name from sqlite_master where type='table' and
-    name like '%{}'"""
-    # sql_drop = """drop table {}"""
-    dat = pd.read_sql(sql_tab_name.format('financial_indicator'), conn)
-    for i, t in dat.iterrows():
+    dat = pd.read_sql("""select name from sqlite_master where type='table' and
+    name like '%{}'""".format(f), conn)
+    for i, t in dat[0:10].iterrows():
         print(t['name'])
-        # cur.execute(sql_drop.format(t['name']))
-
+        # try:
+        #     conn.cursor().execute("""drop table {}""".format(t['name'][:-3]))
+        # except:
+        #     print(t['name'][:-3])
+        # conn.cursor().execute("""drop table {}""".format(t['name']))
     conn.close()
 
 
-# delete_table()
+# delete_table(r'%603%')
 
 
-@gl_v.time_show  # 修改列名
+@tools.time_show  # 修改列名
 def update_column():
-    conn, cur = gl_v.get_conn_cur()
+    conn, cur = tools.get_conn_cur()
     # 查询有没有这个表
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '{}%'"""
@@ -391,10 +398,10 @@ def update_column():
 # update_column()
 
 
-@gl_v.time_show  # 地址: http://data.eastmoney.com/xg/pg/ 配股
+@tools.time_show  # 地址: http://data.eastmoney.com/xg/pg/ 配股
 def stock_em_pg(save='y'):
     import akshare as ak
-    conn, cur = gl_v.get_conn_cur()
+    conn = tools.get_conn_cur()
     # print('stttt')
     st = ak.stock_em_pg()
     print(st)
@@ -533,9 +540,9 @@ def fq_factor3(name2, code, fq, save, conn=''):
 # fq_factor3('美的集团000333', '000333', save='')
 
 
-@gl_v.time_show  # 合并季度年度分红送股表
+@tools.time_show  # 合并季度年度分红送股表
 def concat_fhsg(save=''):
-    conn, cur = gl_v.get_conn_cur()
+    conn = tools.get_conn_cur()
     # 查询有没有表
     sql_tab_name = """select name from sqlite_master where type='table' and
     name like '{}%'"""
@@ -566,9 +573,9 @@ def stock_info_a_code_name_df(conn):
             if_exists='replace', index=False)
 
 
-@gl_v.time_show  # 实时行情转入不复权数据表
+@tools.time_show  # 实时行情转入不复权数据表
 def stock_zh_a_spot_em_to_bfq(save, day):
-    conn, cur = gl_v.get_conn_cur()
+    conn = tools.get_conn_cur()
     # 查询股票中文名
     sql_china_name = """select 代码,名称,今开 as 开盘,最新价 as 收盘,最高,最低,
     成交量,成交额,振幅,涨跌幅,涨跌额,换手率 from '{}'
@@ -597,7 +604,7 @@ def stock_zh_a_spot_em_to_bfq(save, day):
 # 东方财富网-沪深京 A 股-实时行情数据
 def stock_zh_a_spot_em(save, day):
     import akshare as ak
-    conn, cur = gl_v.get_conn_cur()
+    conn = tools.get_conn_cur()
     st = ak.stock_zh_a_spot_em()
     print(st)
     if save == 'y':
@@ -608,7 +615,7 @@ def stock_zh_a_spot_em(save, day):
 # stock_zh_a_spot_em(save='y', day='20221128')
 
 
-@gl_v.time_show  # 计算后复权数据表
+@tools.time_show  # 计算后复权数据表
 def hfq_calu_total(fq, flat):
     import test_east
     conn, cur = gl_v.get_conn_cur()
@@ -638,7 +645,7 @@ def hfq_calu_total(fq, flat):
 # hfq_calu_total(fq='hfq', flat='')
 
 
-@gl_v.time_show  # 去重
+@tools.time_show  # 去重
 def qc_replace():
     conn, cur = gl_v.get_conn_cur()
     # 查询股票中文名

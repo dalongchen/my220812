@@ -17,9 +17,9 @@ def time_show(func):
 def get_conn_cur():
     db_path = Path(__file__).resolve().parent.parent
     db_path = db_path / """mysite/polls/polls_db.sqlite3"""
-    # print(db_path)
+    print(db_path)
     conn = sqlite3.connect(db_path)
-    return conn, conn.cursor()
+    return conn
 
 
 # get_conn_cur()

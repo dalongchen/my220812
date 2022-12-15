@@ -129,30 +129,34 @@ def results(request, question_id):  # k线图和预增提示
 @tools.time_show
 def stock_standard_k(request, question_id):  # 标准k线图和?提示
     inp = request.GET.get('inp', default='11')
-    conn, cur = tool_db.get_conn_cur()
+    conn = tool_db.get_conn_cur()
     # 查询有没有这个表
-    sql_tab_name = """select name from sqlite_master where type='table' and
-    name like '%{}'"""
-    dat = pd.read_sql(sql_tab_name.format(inp + 'hfq'), conn)
+    dat = pd.read_sql("""select name from sqlite_master where type='table' and
+    name like '%{}'""".format(inp + 'hfq'), conn)
+    print(inp, dat)
     if dat.shape[0] == 1:
-        # print(dat['name'], dat.shape)
-        sql = r"""select * from '{}'""".format(dat['name'].values[0])
-        dat2 = pd.read_sql(sql, conn)
-        # print(dat2.iloc[:, 1:])
-        # breakpoint()
-        value2 = dat2.iloc[:, 1:].values.tolist()
-        # 控制成交金额颜色转换和k线同步
-        dat2.insert(4, 'i', dat2.index.tolist())
-        dat2['max'] = dat2.apply(lambda x: 1 if x['收盘']
-                                 > x['开盘'] else -1, axis=1)
+        dat2 = pd.read_sql(
+            r"""select * from '{}'""".format(dat['name'].values[0]), conn)
     else:
         print('没有这个表:', inp)
+        inp2 = tools.add_sh(inp, big="baostock")
+        # 查询单个票未复权数据
+        dat2 = tool_akshare.get_code_bfq(inp2, conn)
+        # print(dat2)
+        # 计算后复权数据表
+        dat2 = tool_akshare.hfq_calu_total(inp2, dat2, conn, fq2='hfq')
     conn.close()
-
+    # 控制成交金额颜色转换和k线同步
+    dat2.insert(0, 'i', dat2.index.tolist())
+    dat2.insert(
+        0,
+        'max',
+        dat2.apply(lambda x: 1 if x['close'] > x['open'] else -1, axis=1)
+    )
     return JsonResponse({
-        'categoryData': dat2.日期.values.tolist(),
-        'values': value2,
-        'volumes': dat2[['i', '成交额', 'max']].values.tolist(),
+        'categoryData': dat2.date.values.tolist(),
+        'values': dat2.iloc[:, 3:].round(2).values.tolist(),
+        'volumes': dat2[['i', 'amount', 'max']].values.tolist(),
         # 'dat_yj_yg': dat_yj_yg.values.tolist()
     })
 
@@ -417,7 +421,7 @@ def jia_zhi(request):
             # print(dat_pe1)
             dat_pe = dat_pe1[dat_pe1['close']/dat_pe1['shou_yi1'] < x[2]]
             del dat_pe['shou_yi1']
-        print(dat_pe)
+        # print(dat_pe)
         # 计算符合年总资产收益率的股票
         dat_pe = views_son.cal_zzcsyl(quarter, conn, dat_pe)
         dat_pe['code'] = dat_pe['code'].str[3:]
@@ -471,8 +475,8 @@ def update_day_k(request):
                 or code like '30%' or code like '60%'""",
             conn
         )
-        tool_baostock.baostock_history_k(dat, quarter.replace('/', '-'), conn)
-    elif fq == 'east历史k':
+        tool_baostock.baostock_history_k(dat, quarter, conn)
+    elif fq == 'east历史k':  # 前台页面已经作废的方法
         return
         print(fq)
         # 查询股票中文名
@@ -491,23 +495,19 @@ def update_day_k(request):
                 fq=''
             )
             time.sleep(0.5)
-    elif fq == '实时行情':
+    elif fq == '不复权':
         return
         print(fq)
-        # 东方财富网-沪深京 A 股当天实时行情数据
-        tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
-        # 实时行情转入不复权数据表
-        # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+        # baostock不复权日ｋ
+        tool_baostock.baostock_bfq_k(quarter, conn)
     elif fq == '后复权':
+        return
         print(fq)
-        tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
-    elif fq == '实时/后复':
+    elif fq == '不/后复':
         return
         print('oop')
-        # 东方财富网-沪深京 A 股当天实时行情数据
-        tool_akshare.stock_zh_a_spot_em(save='y', day=quarter)
         # 实时行情转入不复权数据表
-        # tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
+        tool_akshare.stock_zh_a_spot_em_to_bfq(save='y', day=quarter)
         tool_akshare.hfq_calu_total(fq2='hfq', flat='pp')  # 计算后复权数据表
     else:
         print('error')
