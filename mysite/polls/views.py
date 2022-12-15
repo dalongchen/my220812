@@ -4,6 +4,7 @@ import pandas as pd
 import time
 import json
 from . import views_son
+import datetime
 
 
 def index(request):
@@ -140,11 +141,9 @@ def stock_standard_k(request, question_id):  # 标准k线图和?提示
     else:
         print('没有这个表:', inp)
         inp2 = tools.add_sh(inp, big="baostock")
-        # 查询单个票未复权数据
-        dat2 = tool_akshare.get_code_bfq(inp2, conn)
+        # 查询单个票后复权数据
+        dat2 = tool_akshare.get_code_bfq(inp2, conn, fq='hfq')
         # print(dat2)
-        # 计算后复权数据表
-        dat2 = tool_akshare.hfq_calu_total(inp2, dat2, conn, fq2='hfq')
     conn.close()
     # 控制成交金额颜色转换和k线同步
     dat2.insert(0, 'i', dat2.index.tolist())
@@ -364,13 +363,8 @@ def stock_yjbb_em(request):  # 基本面 净资产收益率,总资产收益率,�
 @tools.time_show  # 获取某天价值股,净资产收益率，总资产收益率，ｐｅ＜２１
 def jia_zhi(request):
     quarter = request.GET.get('quarter', default='11')
+    # print(strftime1, strftime2, "日期", strftime1 <= strftime2)
     print(quarter)
-    # quarter = json.loads(quarter).get('_value')
-    conn = tool_db.get_conn_cur()
-    # 查询有没有这个表
-    sql_tab_name = """select name from sqlite_master where type='table' and
-    name like '{}'"""
-    dat = pd.read_sql(sql_tab_name.format('baostock_day_k%'), conn)
     # 查询低ｐｅ＜２１股票  利用市净率计算每股净资产
     sql_pe = """select code,name,open,close,high,low,volume,amount,turn,
         pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where date='{}' and
@@ -381,27 +375,31 @@ def jia_zhi(request):
         date>'{}' and date<'{}' and
         (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>0.04"""
     day2 = quarter.replace('/', '-')
-    year_front = [
-        ('2022-04-01', '2022-04-10', 21),
-        ('2021-04-01', '2021-04-10', 31),
-        ('2020-04-01', '2020-04-10', 41),
-        ('2019-04-01', '2019-04-10', 51),
-        ('2018-04-01', '2018-04-10', 61),
-    ]
-    for i, t in dat.iterrows():
-        print(t['name'], day2)
+    yy_ = int(day2[:4]) - 1
+    year_front = []
+    for g in range(4):
+        yy_g = str(yy_-g)
+        year_front.append((yy_g + '-04-01', yy_g + '-04-10', g*10 + 31))
+    # print(year_front)
+    strftime1 = datetime.datetime.strptime(day2, "%Y-%m-%d")
+    strftime2 = datetime.datetime.strptime("2022-12-10", "%Y-%m-%d")
+    conn = tool_db.get_conn_cur()
+    if strftime1 <= strftime2:
+        print(day2)
         # print(sql_pe.format(t['name'], day2, 21, 0))
         # 查询低ｐｅ＜２１股票  .str[3:]
-        dat_pe = pd.read_sql(sql_pe.format(t['name'], day2, 21, 0, 0.1), conn)
+        dat_pe = pd.read_sql(
+            sql_pe.format('baostock_day_k2022-12-10', day2, 21, 0, 0.1), conn)
         dat_pe = dat_pe.replace('', 0)
         dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].astype(float)
         # print(dat_pe)
-        for x in year_front[0:]:
-            print(x)
+        for x in year_front:
+            # print(x)
             dat_pe_code = tuple(dat_pe['code'])
             # 查询符合ｄａｔ＿ｐｅ<21的前一年数据
             dat_pe1 = pd.read_sql(
-                sql_pe1.format(t['name'], dat_pe_code, x[0], x[1]),
+                sql_pe1.format(
+                    'baostock_day_k2022-12-10', dat_pe_code, x[0], x[1]),
                 conn
             )
             dat_pe1[["close", "peTTM"]] = dat_pe1[[
@@ -418,7 +416,7 @@ def jia_zhi(request):
                 dat_pe1[['code', 'shou_yi1']],
                 on=['code']
             )
-            # print(dat_pe1)
+            # 选出市盈率符合数组里面设定要求的市盈率
             dat_pe = dat_pe1[dat_pe1['close']/dat_pe1['shou_yi1'] < x[2]]
             del dat_pe['shou_yi1']
         # print(dat_pe)
@@ -430,6 +428,8 @@ def jia_zhi(request):
         # print(dat_pe)
         conn.close()
         return tools.view_return_response(dat_pe, JsonResponse)
+    else:
+        raise
 
 
 @tools.time_show  # 获取某天涨停股,技术股

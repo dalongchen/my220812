@@ -1,7 +1,7 @@
 # import tool_db
 # import tools
 # import tool_east
-from . import tool_db, tools, tool_east
+from . import tool_db, tools
 import pandas as pd
 import akshare as ak
 
@@ -204,7 +204,7 @@ def concat_fhsg(conn):
     # conn.close()
 
 
-# 经典计算个股复权
+# 暂停用　计算个股复权
 def fq_factor3(code, dat2, fq, conn):
     # 查询是否有分红送股
     dat = pd.read_sql(
@@ -319,30 +319,32 @@ def fq_factor3(code, dat2, fq, conn):
     return dat2
 
 
-# 查询单个票未复权数据
-def get_code_bfq(inp2, conn):
+# 查询单个票后复权数据
+def get_code_bfq(inp2, conn, fq=''):
     # 查询有baostock all表
     dat_t = pd.read_sql(
         """select name from sqlite_master where type='table' and name
         like '{}'""".format('baostock_day_k%'),
         conn
     )
-    # print()
+    # print(dat_t)
     dat2 = pd.DataFrame()
-    for i, t in dat_t[0:].iterrows():
-        print(t['name'])
-        dat_ = pd.read_sql(
-            r"""select date,open,close,low,high,volume,amount,turn,
-            pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where code='{}'
-            """.format(t['name'], inp2),
-            conn
-        )
-        dat2 = pd.concat([dat2, dat_], axis=0, ignore_index=True)
-    dat2.iloc[:, 1:] = dat2.iloc[:, 1:].replace('', 0).astype(float)
+    for i, t in dat_t.iterrows():
+        if t['name'][-3:] == 'hfq':
+            # print(t['name'], t['name'][-3:], t['name'][-3:] == 'hfq')
+            dat_ = pd.read_sql(
+                r"""select date,open,close,low,high,volume,amount,turn,
+                pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where code='{}'
+                """.format(t['name'], inp2),
+                conn
+            )
+            dat2 = pd.concat([dat2, dat_], axis=0, ignore_index=True)
+    dat2.iloc[:, 1:] = dat2.iloc[:, 1:].replace('', 0).astype(float).round(2)
+    dat2.to_sql(inp2 + fq, con=conn, if_exists='replace', index=False)
     return dat2
 
 
-# 计算后复权数据表，只计算单个股票，全部股票暂停
+# 暂停用　计算后复权数据表，
 def hfq_calu_total(code2, dat2, conn, fq2):
     # 更新配股数据 not stock_em_pg()
     # tool_east.east_history_peigu_data(conn=conn)

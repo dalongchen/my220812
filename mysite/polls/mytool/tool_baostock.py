@@ -5,6 +5,7 @@ import baostock as bs
 
 # 获取全部股k
 def baostock_history_k(dat, day, conn):
+    return
     import datetime
     # 查询多少个表，查询已经记录的ｋ线最后日期
     dat_t = pd.read_sql(
@@ -16,8 +17,6 @@ def baostock_history_k(dat, day, conn):
     start_d = datetime.datetime.strptime(start_d, '%Y-%m-%d')
     start_d += datetime.timedelta(days=1)
     end_d = datetime.datetime.strptime(day, '%Y/%m/%d')
-    # 
-    # return
     if start_d <= end_d:
         start_d = str(start_d)[:10]
         print(start_d)
@@ -41,8 +40,6 @@ def baostock_history_k(dat, day, conn):
                 frequency="d",
                 adjustflag="3"
             )
-            # print('query_history_k_data_plus respond error_code:'+rs.error_code)
-            # print('query_history_k_data_plus respond  error_msg:'+rs.error_msg)
 
             # 打印结果集 ####
             data_list = []
@@ -50,7 +47,8 @@ def baostock_history_k(dat, day, conn):
                 # 获取一条记录，将记录合并在一起
                 data_list.append(rs.get_row_data())
             result = pd.DataFrame(data_list, columns=rs.fields)
-            result.insert(1, 'name', t['name'].replace(' ', '').replace('*', ''))
+            result.insert(
+                1, 'name', t['name'].replace(' ', '').replace('*', ''))
             # print(result)
             # return
             # 结果集输出到文件

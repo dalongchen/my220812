@@ -1,5 +1,6 @@
-import pandas as pd
+# import pandas as pd
 from time import time
+import datetime
 
 
 # big="baostock"加(sh. or sz.)code加(sh or sz) or (SZ or SH)
@@ -55,53 +56,52 @@ def time_show(func):
 
 
 # 循环合并两df中的重复部分-concat
-def new_stock_yjbb_em_20_concat(df_new2021, df_new2020):
-    df_new_concat = pd.DataFrame()  # 循环合并两df中的重复部分
-    for i, t in df_new2021.iterrows():
-        # print(t['股票代码'])
-        if t['股票代码'] in df_new2020:
-            df_new_concat = pd.concat([df_new_concat, t], axis=1)
-    df_new_concat = pd.DataFrame(df_new_concat.values.T,
-                                 index=df_new_concat.columns,
-                                 columns=df_new_concat.index)
-    return df_new_concat
+# def new_stock_yjbb_em_20_concat(df_new2021, df_new2020):
+#     df_new_concat = pd.DataFrame()  # 循环合并两df中的重复部分
+#     for i, t in df_new2021.iterrows():
+#         # print(t['股票代码'])
+#         if t['股票代码'] in df_new2020:
+#             df_new_concat = pd.concat([df_new_concat, t], axis=1)
+#     df_new_concat = pd.DataFrame(df_new_concat.values.T,
+#                                  index=df_new_concat.columns,
+#                                  columns=df_new_concat.index)
+#     return df_new_concat
 
 
 # 循环合并两df中的重复部分-delete
-def new_stock_yjbb_em_20_delete(df_new2021, df_new2020):
-    df_new_concat = df_new2021.copy()
-    # print(df_new_concat)
-    for i, t in df_new2021.iterrows():
-        if t['股票代码'] not in df_new2020:
-            # print(i, t)
-            df_new_concat.drop(index=[i], inplace=True)
+# def new_stock_yjbb_em_20_delete(df_new2021, df_new2020):
+#     df_new_concat = df_new2021.copy()
+#     # print(df_new_concat)
+#     for i, t in df_new2021.iterrows():
+#         if t['股票代码'] not in df_new2020:
+#             # print(i, t)
+#             df_new_concat.drop(index=[i], inplace=True)
 
-    return df_new_concat
+#     return df_new_concat
 
 
 # add column,循环合并两df中的重复部分-delete
-def add_column_concat_delete(df_new2021, df_new2020):
-    df_new_concat = df_new2021.copy()
-    # print(df_new_concat)
-    for i, t in df_new2021.iterrows():
-        if t['股票代码'] not in df_new2020['股票代码'].values:
-            # print(i, t)
-            df_new_concat.drop(index=[i], inplace=True)
-    # print(df_new_concat)
-    df_ = df_new2020.copy()
-    for i, t in df_new2020.iterrows():
-        if t['股票代码'] not in df_new2021['股票代码'].values:
-            # print(i, t)
-            df_.drop(index=[i], inplace=True)
-    d = pd.to_numeric(df_['总资产收益率'], errors='coerce')*100
-    # print(d.round(2))
-    df_new_concat['总资产收益率'] = (d.round(2)).values
-    return df_new_concat
+# def add_column_concat_delete(df_new2021, df_new2020):
+#     df_new_concat = df_new2021.copy()
+#     # print(df_new_concat)
+#     for i, t in df_new2021.iterrows():
+#         if t['股票代码'] not in df_new2020['股票代码'].values:
+#             # print(i, t)
+#             df_new_concat.drop(index=[i], inplace=True)
+#     # print(df_new_concat)
+#     df_ = df_new2020.copy()
+#     for i, t in df_new2020.iterrows():
+#         if t['股票代码'] not in df_new2021['股票代码'].values:
+#             # print(i, t)
+#             df_.drop(index=[i], inplace=True)
+#     d = pd.to_numeric(df_['总资产收益率'], errors='coerce')*100
+#     # print(d.round(2))
+#     df_new_concat['总资产收益率'] = (d.round(2)).values
+#     return df_new_concat
 
 
 # 获取季度数组
 def get_quarter_array(f='', day=''):
-    import datetime
     if f and day:  # 获取指定日子后的季度
         now_year = int(day[:4])
         m = int(day[5:7])
@@ -117,7 +117,6 @@ def get_quarter_array(f='', day=''):
         _range = now_year - 1988
         # 子函数
         arr_quater, xx = get_quarter_array_son(now_year, m, _range)
-        # print(arr_quater[xx:-3])
         return arr_quater[xx:-3]
 
 
