@@ -77,10 +77,19 @@ def new_stock_yjbb_em_20(
     return df_new2021
 
 
-def ak_zhang_ting(day2):  # 涨停,技术股
+def ak_zhang_ting(day2):  # 涨停,技术股,流通市值大于６００亿
+    day2 = day2.replace('/', '')
+    sto = ak.stock_zt_pool_em(date=day2)
+    print(sto)
+    sto = sto[sto['流通市值'] > 50000000000]
+    # print(sto)
+    return sto
+
+
+def delete_ak_zhang_ting(day2):  # 涨停,技术股，流通市值大于６００亿
     day2 = day2.replace('/', '')
     print(day2)
-    conn, cur = tool_db.get_conn_cur()
+    conn = tool_db.get_conn_cur()
     # 查询有没有这个表
     sql_tab_name = """select name from sqlite_master where type='table' and
     name = '{}'"""
@@ -89,16 +98,18 @@ def ak_zhang_ting(day2):  # 涨停,技术股
     if dat.shape[0] == 0:  # 如果表名不存在-进
         print('表名不存在--下载', dat)
         sto = ak.stock_zt_pool_em(date=day2)
-        # print(sto)
+        print(sto)
         if not sto.empty:
             sto.to_sql('zhangTing' + day2, con=conn,
                        if_exists='replace', index=False)
+            # conn.close()
+            # return sto
         else:
             print('非交易日?')
     # breakpoint()
     # 查询某天涨停股
-    da = pd.read_sql("""select * from {} where
-        代码 like '00%' or 代码 like '30%' or 代码 like '60%'
+    da = pd.read_sql("""select * from {} where 流通市值>50000000000 and
+        (代码 like '00%' or 代码 like '30%' or 代码 like '60%')
         """.format('zhangTing' + day2), conn)
     conn.close()
     return da
@@ -164,26 +175,6 @@ def stock_info_a_code_name_df(conn):
     stock_info_a_code_name_df.to_sql(
         'stock_info_a_code_name', con=conn,
         if_exists='replace', index=False)
-
-
-# # 中报,年报分红配送
-# def stock_fhps_em(save, qua, conn):
-#     import time
-#     for i in tools.get_quarter_array()[:qua]:
-#         st = ak.stock_fhps_em(date=i)
-#         print("stock_fhps_em" + i)
-#         st.rename(columns={
-#             '送转股份-送转总比例': '送转总比例',
-#             '送转股份-送转比例': '送转比例',
-#             '送转股份-转股比例': '转股比例',
-#             '现金分红-现金分红比例': '现金分红比例',
-#             '现金分红-股息率': '股息率',
-#         }, inplace=True)
-#         print(st)
-#         if save == 'y':
-#             st.to_sql("stock_fhps_em" + i, con=conn,
-#                       if_exists='replace', index=False)
-#         time.sleep(0.4)
 
 
 # 合并季度年度分红送股表
@@ -340,7 +331,7 @@ def get_code_bfq(inp2, conn, fq=''):
             )
             dat2 = pd.concat([dat2, dat_], axis=0, ignore_index=True)
     dat2.iloc[:, 1:] = dat2.iloc[:, 1:].replace('', 0).astype(float).round(2)
-    dat2.to_sql(inp2 + fq, con=conn, if_exists='replace', index=False)
+    # dat2.to_sql(inp2 + fq, con=conn, if_exists='replace', index=False)kk
     return dat2
 
 
@@ -354,17 +345,6 @@ def hfq_calu_total(code2, dat2, conn, fq2):
     # concat_fhsg(conn=conn)
     dat3 = fq_factor3(code2, dat2, fq2, conn=conn)
     return dat3
-    # 查询股票中文名
-    # sql_china_name = """select * from stock_info_a_code_name
-    # where code like '00%' or code like '30%' or code like '60%'"""
-    # dat = pd.read_sql(sql_china_name, conn)
-    # # print(dat)
-    # for i, t in dat.iloc[0:].iterrows():
-    #     print(i, t['name'].replace(' ', '').replace('*', ''), t['code'])
-    #     # 经典计算复权
-    #     fq_factor3(t['name'].replace(' ', '').replace('*', ''), t['code'],
-    #                fq2, save='y', conn=conn)
-    # conn.close
 
 
 # 前台页面已经作废的方法

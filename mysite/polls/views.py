@@ -3,7 +3,7 @@ from .mytool import tool_db, tools, tool_east, tool_akshare, tool_baostock
 import pandas as pd
 import time
 import json
-from . import views_son
+# from . import views_son
 import datetime
 
 
@@ -131,19 +131,22 @@ def results(request, question_id):  # k线图和预增提示
 def stock_standard_k(request, question_id):  # 标准k线图和?提示
     inp = request.GET.get('inp', default='11')
     conn = tool_db.get_conn_cur()
+    inp2 = tools.add_sh(inp, big="baostock")
+    # 查询单个票后复权数据
+    dat2 = tool_akshare.get_code_bfq(inp2, conn, fq='hfq')
     # 查询有没有这个表
-    dat = pd.read_sql("""select name from sqlite_master where type='table' and
-    name like '%{}'""".format(inp + 'hfq'), conn)
-    print(inp, dat)
-    if dat.shape[0] == 1:
-        dat2 = pd.read_sql(
-            r"""select * from '{}'""".format(dat['name'].values[0]), conn)
-    else:
-        print('没有这个表:', inp)
-        inp2 = tools.add_sh(inp, big="baostock")
-        # 查询单个票后复权数据
-        dat2 = tool_akshare.get_code_bfq(inp2, conn, fq='hfq')
-        # print(dat2)
+    # dat = pd.read_sql(
+    # """select name from sqlite_master where type='table' and
+    # name like '%{}'""".format(inp + 'hfq'), conn)
+    # print(inp, dat)
+    # if dat.shape[0] == 1:
+    #     dat2 = pd.read_sql(
+    #         r"""select * from '{}'""".format(dat['name'].values[0]), conn)
+    # else:
+    #     print('没有这个表:', inp)
+    #     inp2 = tools.add_sh(inp, big="baostock")
+    #     # 查询单个票后复权数据
+    #     dat2 = tool_akshare.get_code_bfq(inp2, conn, fq='hfq')
     conn.close()
     # 控制成交金额颜色转换和k线同步
     dat2.insert(0, 'i', dat2.index.tolist())
@@ -365,21 +368,18 @@ def jia_zhi(request):
     quarter = request.GET.get('quarter', default='11')
     # print(strftime1, strftime2, "日期", strftime1 <= strftime2)
     print(quarter)
-    # 查询低ｐｅ＜２１股票  利用市净率计算每股净资产
-    sql_pe = """select code,name,open,close,high,low,volume,amount,turn,
-        pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where date='{}' and
-        cast(peTTM as decimal(10,2))<{} and cast(peTTM as decimal(10,2))>{}
-        and (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>{}"""
-    # 查询低ｐｅ＜２１股票中前一年去年ｐｅ＜２１的股票
-    sql_pe1 = """select code,close,peTTM from '{}' where code in {} and
-        date>'{}' and date<'{}' and
-        (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>0.04"""
+    # 4444 查询低ｐｅ＜41股票中前一年去年ｐｅ＜4１的股票,净资产收益率大于0.1
+    sql_pe1 = """select code,close,peTTM from '{}' where code in {}
+        and date>'{}' and date<'{}'
+        and (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>0.01
+        and (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>0.06
+        """
     day2 = quarter.replace('/', '-')
     yy_ = int(day2[:4]) - 1
     year_front = []
-    for g in range(4):
+    for g in range(4):  # 获取４年日期
         yy_g = str(yy_-g)
-        year_front.append((yy_g + '-04-01', yy_g + '-04-10', g*10 + 31))
+        year_front.append((yy_g + '-04-01', yy_g + '-04-10', g*10 + 91))
     # print(year_front)
     strftime1 = datetime.datetime.strptime(day2, "%Y-%m-%d")
     strftime2 = datetime.datetime.strptime("2022-12-10", "%Y-%m-%d")
@@ -387,9 +387,17 @@ def jia_zhi(request):
     if strftime1 <= strftime2:
         print(day2)
         # print(sql_pe.format(t['name'], day2, 21, 0))
-        # 查询低ｐｅ＜２１股票  .str[3:]
+        # 查询低ｐｅ＜２１股票 333333333
+        # 净资产收益率cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2))>0.2
         dat_pe = pd.read_sql(
-            sql_pe.format('baostock_day_k2022-12-10', day2, 21, 0, 0.1), conn)
+            """select code,name,open,close,high,low,volume,amount,turn,
+            pctChg,peTTM,pbMRQ,psTTM,pcfNcfTTM from '{}' where date='{}' and
+            cast(peTTM as decimal(10,2))<{} and cast(peTTM as decimal(10,2))>{}
+            and (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))>{}
+            and (cast(pbMRQ as decimal(10,2))/cast(peTTM as decimal(10,2)))<{}
+            """.format(
+                'baostock_day_k2022-12-10', day2, 91, 0, 0.01, 0.06), conn
+            )
         dat_pe = dat_pe.replace('', 0)
         dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].astype(float)
         # print(dat_pe)
@@ -420,12 +428,14 @@ def jia_zhi(request):
             dat_pe = dat_pe1[dat_pe1['close']/dat_pe1['shou_yi1'] < x[2]]
             del dat_pe['shou_yi1']
         # print(dat_pe)
-        # 计算符合年总资产收益率的股票
-        dat_pe = views_son.cal_zzcsyl(quarter, conn, dat_pe)
+        # 计算符合年总资产收益率的股票 22222222222
+        # dat_pe = views_son.cal_zzcsyl(quarter, conn, dat_pe)
         dat_pe['code'] = dat_pe['code'].str[3:]
         # dat_pe = dat_pe.copy()
         dat_pe.iloc[:, 2:] = dat_pe.iloc[:, 2:].round(2)
         # print(dat_pe)
+        # 结果集输出到文件 11111111
+        # dat_pe.to_csv('jzcsyl20150601_1_6.csv')
         conn.close()
         return tools.view_return_response(dat_pe, JsonResponse)
     else:

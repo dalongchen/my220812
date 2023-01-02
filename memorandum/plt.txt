@@ -1,0 +1,6 @@
+import matplotlib设置画图中文
+matplotlib.rc("font", family='CESI_HT_GB13000')
+import matplotlib.pyplot as plt两种方式都行
+plt.rcParams['font.sans-serif'] = 'CESI_HT_GB13000'
+
+fc-list :lang=zh在ＶＳＣＯ的终端输入此命令可以看系统的中文字体库名字
