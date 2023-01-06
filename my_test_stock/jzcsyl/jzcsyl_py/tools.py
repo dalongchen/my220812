@@ -73,8 +73,8 @@ def add_sh(code, big=""):
     return code
 
 
-# 查询单个票后复权数据
-def get_code_bfq(inp2, conn, d, fq=''):
+# 查询单个票后复权数据并计算指定时间涨幅
+def get_code_bfq(inp2, conn):
     # 查询有baostock all表
     dat_t = pd.read_sql(
         """select name from sqlite_master where type='table' and name
