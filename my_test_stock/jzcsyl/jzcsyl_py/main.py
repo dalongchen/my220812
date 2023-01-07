@@ -15,7 +15,7 @@ class ToolsMain:  # 共用类
             '2022-06-01',
         ]
 
-    def tool_df(self):  # 获取ｃｓｖ数据
+    def tool_df(self, f=''):  # 获取ｃｓｖ数据
         path_ = tools.get_conn_cur(f='p')
         df = pd.read_csv(
             path_/"""my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601_up.csv""",
@@ -23,7 +23,10 @@ class ToolsMain:  # 共用类
             sep=',',
             na_values=['NULL']
         )
-        return df
+        if f == '':
+            return df
+        if f == 2:
+            return df, path_
 
     def index_zh_a_hist_df(self):  # 获取全ａ历史数据
         import akshare as ak
@@ -97,29 +100,35 @@ class ToolsMain:  # 共用类
         return dff['y_up']
 
     @tools.time_show
-    def box_plt():  # 净资产收益率和{}年后涨幅关系四分位图
+    def box_plt(self, f=''):  # 净资产收益率和{}年后涨幅关系四分位图，ｆ＝２画直方图
         import matplotlib.pyplot as plt
         import seaborn as sns
         plt.rcParams['font.sans-serif'] = 'CESI_HT_GB13000'
         plt.rcParams['axes.unicode_minus'] = False
-        path_ = tools.get_conn_cur(f='p')
-        df = pd.read_csv(
-            path_/"""my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601_up.csv""",
-            dtype={'code': object},
-            sep=',',
-            na_values=['NULL']
-        )
+        df, path_ = self.tool_df(f=2)
         ii = 0
-        for gg in df.iloc[:, 3:-1]:
-            ii += 1
-            fig, ax = plt.subplots(1, 1, figsize=(8, 4))  # 1行2列的子图
-            # 箱图显示均值，设置均值线属性
-            ax1 = sns.boxplot(x='jzcsyl', y=gg, data=df, showmeans=True,
-                              meanprops={'marker': 'D', 'markerfacecolor': 'red'})
-            ax1.set_title('净资产收益率和{}年后涨幅关系四分位图'.format(ii), size=12)
-            plt.savefig(
-                path_/"my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601box{}.png".format(ii), dpi=100)
-        # plt.show()
+        # for gg in df.iloc[:, 3:-2]:
+        for gg in df.iloc[:, -3:-2]:
+            if f == '':  # 画箱线图
+                ii += 1
+                fig, ax = plt.subplots(1, 1, figsize=(8, 4))  # 1行2列的子图
+                # 箱图显示均值，设置均值线属性
+                ax1 = sns.boxplot(x='jzcsyl', y=gg, data=df, showmeans=True,
+                                  meanprops={'marker': 'D', 'markerfacecolor': 'red'})
+                ax1.set_title('净资产收益率和{}年后涨幅关系四分位图'.format(ii), size=12)
+                # plt.savefig(
+                #     path_/"my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601box{}.png".format(ii), dpi=100)
+            if f == 2:  # 画直方图
+                d1 = df[df['jzcsyl'] == 1][gg].values
+                d2 = df[df['jzcsyl'] == 2][gg].values
+                d3 = df[df['jzcsyl'] == 3][gg].values
+                sns.displot(d1, kde=True)
+                plt.title(gg + '数据集1')
+                sns.displot(d2, kde=True)
+                plt.title(gg + '数据集2')
+                sns.displot(d3, kde=True)
+                plt.title(gg + '数据集3')
+                plt.show()
 
     @tools.time_show
     def describe_data():  # 净资产收益率{}年　数据描述
@@ -144,13 +153,14 @@ class ToolsMain:  # 共用类
             print(df_jzc[gg].describe())
 
 
-# ToolsMain().index_zh_a_hist_df()
-# ToolsMain().a_index_up()
+# ToolsMain().index_zh_a_hist_df()  # 获取全ａ历史数据
+# ToolsMain().a_index_up()  # 计算指定时间全ａ指数年涨幅
+# ToolsMain().box_plt(f=2)
 
 
 class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
 
-    def zt_test(self):  # 正态检验, 正态\ｔ分布估计置信区间
+    def zt_test(self, f):  # 正态检验, 正态\ｔ分布估计置信区间
         import scipy.stats as stats
         import statsmodels.api as sm
         # import numpy as np
@@ -162,36 +172,104 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
         # """执行Shapiro-Wilk 正态性检验,原假设H0：样本数据服从正态分布"""
         # print(stats.shapiro(series_i))
 
-        path_ = tools.get_conn_cur(f='p')
-        df = pd.read_csv(
-            path_/"""my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601_up.csv""",
-            dtype={'code': object},
-            sep=',',
-            na_values=['NULL']
-        )
+        tm = ToolsMain()
+        df = tm.tool_df()  # 获取ｃｓｖ数据
         list_fac = df['jzcsyl'].unique()  # 分组标签取出
         for gg in df.iloc[:, 3:-2]:
             # print(stats.shapiro(df[gg]))  # 对每一年涨幅做正态性检验
             print(gg)
             for i in list_fac:
                 series_i = df[df['jzcsyl'] == i][gg]
-                """zconfint_mean方法可得到正态估计区间(下限[101.16400895]，上限[108.96099105])－＞９５％置信区间"""
-                print(sm.stats.DescrStatsW(series_i).zconfint_mean(alpha=0.05))
-                # t分布下的估计置信区间
-                print(sm.stats.DescrStatsW(series_i).tconfint_mean(alpha=0.05))
-                # t分布下的均值估计结果和sm.stats.DescrStatsW一致
-                print(stats.bayes_mvs(series_i, alpha=0.95))
-                # Shapiro-Wilk test, x 为待检测数据，返回统计量和P值,适合样本量小于50,
-                # 当p值大于指定的显著性水平0.05，则接受原假设
-                # print(list(series_i))
-                # print(stats.shapiro(series_i))
-                # Kolmogorov–Smirnov,K-S 检验，样本量适合50~300，x 待检测数据，cdf为待检验分布，
-                # norm可检验正态，返回统计量和P值
-                # stats.kstest (x, cdf, args = ( ), alternative ='two-sided', mode ='approx')
-                # stats.anderson(x, dist ='norm' )  # x 为待检测数据，dist为待检测分布，可以正态、指数、二项等
-                # stats.normaltest (a, axis=0) # 样本量大于300
+                if f == 'mean':  # 估计置信区间
+                    """zconfint_mean方法可得到正态估计区间(下限[101.16400895]，上限[108.96099105])－＞９５％置信区间"""
+                    # print(sm.stats.DescrStatsW(series_i).zconfint_mean(alpha=0.05))
+                    # # t分布下的估计置信区间
+                    print(sm.stats.DescrStatsW(series_i).tconfint_mean(alpha=0.05))
+                    # t分布下的均值估计结果和sm.stats.DescrStatsW一致
+                    print(stats.bayes_mvs(series_i, alpha=0.95))
+                if f == 'shapiro':  # 正态性检验
+                    # Shapiro-Wilk test, x 为待检测数据，返回统计量和P值,适合样本量小于50,
+                    # 当p值大于指定的显著性水平0.05，则接受原假设
+                    # print(list(series_i))
+                    print(stats.shapiro(series_i))
 
-    def z_test(self):  # 单,双样本总体z检验
+    def zt_kstest(self):  # kstest正态检验
+        from scipy import stats
+
+        data = [87, 77, 92, 68, 80, 78, 84, 77, 81, 80, 80, 77, 92, 86,
+                76, 80, 81, 75, 77, 72, 81, 72, 84, 86, 80, 68, 77, 87,
+                76, 77, 78, 92, 75, 80, 78]
+        # 样本数据，35位健康男性在未进食之前的血糖浓度
+        df = pd.DataFrame(data, columns=['value'])
+        u = df['value'].mean()  # 计算均值
+        std = df['value'].std()  # 计算标准差
+        print(stats.kstest(df['value'], 'norm', (u, std)))
+        # .kstest方法：KS检验，参数分别是：待检验的数据，检验方法（这里设置成norm正态分布），均值与标准差
+        # 结果返回两个值：statistic → D值，pvalue → P值
+        # p值大于0.05，为正态分布
+
+    @tools.time_show
+    def fc_levene(self, f):  # 用Levene方法分别对各因素进行方差齐性检验
+        import numpy as np
+        from scipy import stats   # 里面有方差齐性检验方差
+        # 这里是随机生成的数据，相同的条件，有一定的概率出现齐和不齐的矛盾
+        # A = stats.norm.rvs(loc=1, scale=1.1, size=(35)).round(4)  # 生成A公司的销售额
+        # B = stats.norm.rvs(loc=1.2, scale=1, size=(30)).round(4)  # 生成B公司的销售额
+        # print(list(A), list(B))  # 进行levene检验
+        # A = [1.0942, 1.1501, 3.5823, 0.9121, 1.3506, 1.1824, 1.3453, 2.1039, 0.3804, 0.5935, 0.1457,
+        # 0.8254, 1.8466, 2.0999, 1.4345, 1.5848, 1.0598, 1.6722, 0.9101, 0.5517, 1.1808, 1.8105,
+        # 1.0371, 1.1012, 0.6243, 1.1696, 2.0166, 0.1301, 1.747, -0.6323, -0.3689, 1.551, 1.4555,
+        # 1.5964, 2.756]
+        # B = [-1.1653, -0.8151, 0.9861, 0.7797, 0.9308, 3.4523, 2.2472, -1.4611, -0.1066, -0.0009,
+        # 1.0455, 3.0819, 0.8077, 2.6612, 0.8867, 2.6037, 0.4398, -0.9041, -1.4055, 0.4753, 3.0384,
+        # 1.8281, 1.2435, 1.9684, 2.6899, 0.8439, 3.1615, -0.925, 0.126, 2.0406]
+        # 方差有差异LeveneResult(statistic=11.37349093148534, pvalue=0.0012778283554916124)
+        # A = [0.3886, 1.1425, 1.0865, -0.4129, -0.0549, 0.0986, 1.4797, 0.5632, 1.368, 1.4655,
+        # 0.4392, 2.3143, 0.6491, 1.0754, 1.2782, 2.596, 1.0671, -0.7807, 0.9889, 1.4671, 0.998,
+        # 0.8704, 1.4502, 2.7007, 0.014, 1.9202, 0.8085, 1.6934, 0.9389, 3.3939, -0.339, 0.5745,
+        # -0.0397, 2.4227, 1.0813]
+        # B = [1.1416, 3.1655, 1.4725, 1.1772, 1.1752, 1.7364, 1.418, 2.2786, 0.9255, 1.9141,
+        # 0.5345, 1.25, 1.5529, 1.1268, 3.0391, 0.8253, 1.9717, 0.8799, 1.9872, 1.6706, 2.9861,
+        # 1.9165, 0.6177, 0.2849, 3.5311, 1.658, 2.0414, -0.9646, -0.5122, 0.7878]
+        # 方差没有差异LeveneResult(statistic=0.09986197295986858, pvalue=0.7530399226692273)
+        # print(stats.levene(A, B))  # 进行levene检验
+        # 方差不同，设为equal_var=False
+        # print(stats.ttest_ind(A, B, equal_var=False))  # 进行独立样本t检验
+        # return
+        tm = ToolsMain()
+        df = tm.tool_df()  # 获取ｃｓｖ数据
+        # df['2018-06-01'] = 1/df['2018-06-01']
+        # df['2019-06-01'] = 1/df['2019-06-01']
+        # # df['2020-06-01'] = df['2020-06-01']
+        # df['2021-06-01'] = 1/df['2021-06-01']
+        # print(df['2020-06-01'])
+        # 用Levene方法分别对各因素进行方差齐性检验并解释结果
+        if f == 2:
+            aa = {}
+            # for gg in df.iloc[:, 3:-2]:
+            for gg in df.iloc[:, 3:-2]:
+                df_c = df[[gg, 'jzcsyl']]
+                d1 = df_c[df_c['jzcsyl'] == 1][gg].values
+                d3 = df_c[df_c['jzcsyl'] == 3][gg].values
+                # 样本数据，可能具有不同的长度。只接受一维样本
+                year_jzc = stats.levene(*[d1, d3])
+                # print(gg, np.round(year_jzc, 2))
+                aa[gg] = year_jzc[1]
+            # print(aa)
+            return aa
+        if f == 3:
+            # for gg in df.iloc[:, 3:-2]:
+            for gg in df.iloc[:, 3:-2]:
+                df_c = df[[gg, 'jzcsyl']]
+                d1 = df_c[df_c['jzcsyl'] == 1][gg].values
+                d2 = df_c[df_c['jzcsyl'] == 2][gg].values
+                d3 = df_c[df_c['jzcsyl'] == 3][gg].values
+                # 样本数据，可能具有不同的长度。只接受一维样本
+                year_jzc = stats.levene(*[d1, d2, d3])
+                print(gg, np.round(year_jzc, 2))
+            # P=0.0 净资产收益率的三组数据之间有显著差异。2016-06-01 [0.23  0.795]
+
+    def z_test(self):  # 单,双样本z检验
         import statsmodels.stats.weightstats as ws
         import numpy as np
         # X = numpy.random.normal(-0.51, 0.05, 30).round(3)
@@ -215,9 +293,17 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
                 print(np.round(ws.ztest(series_i, value=a_up[ddd], alternative='larger'), 3))
             ddd += 1
 
-    def t_test(self):  # 单样本总体t检验
-        # import numpy as np
+    def t_test(self):  # 单样本总体t检验-非参数检验
         import statsmodels.api as sm
+
+        # from scipy import stats
+        # data = pd.Series([15.6, 16.2, 22.5, 20.5, 16.4,
+        #                  19.4, 16.6, 17.9, 12.7, 13.9])
+        # data_mean = data.mean()
+        # data_std = data.std()
+        # pop_mean = 20
+        # t, p_towTail = stats.ttest_1samp(data, pop_mean)
+        # print(data_mean, data_std, t, p_towTail)
 
         # valueList = [0.169747, 0.165484, 0.142358, 0.143358, 0.141358, 0.0631967, 0.101527]
         # d = sm.stats.DescrStatsW(valueList)
@@ -245,56 +331,39 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
                 print('t检验= %6.4f,p-value=%6.4f, df=%s' % d)
             ddd += 1
 
-    def t_ttest_ind(self):  # 独立样本两总体参数t检验
+    def t_ttest_ind(self):  # 独立样本两总体参数t检验-非参数检验
         # import numpy as np
         import statsmodels.stats.weightstats as ws
+        bb = self.fc_levene(f=2)  # f=2比较２个
+        # print(bb)
 
         tm = ToolsMain()
         df = tm.tool_df()  # 获取ｃｓｖ数据
         for gg in df.iloc[:, 3:-2]:
-            # print(a_up[ddd])
+            if bb[gg] > 0.05:  # 方差齐
+                us = 'pooled'
+            else:
+                us = 'unequal'
             print(gg)
             se1 = df[df['jzcsyl'] == 1][gg]
             se2 = df[df['jzcsyl'] == 3][gg]
-            """x1x2为两组样本数据，有相同的行列数shape；alternative为备择假设的形式，
+            """x1x2为两组样本数据，有相同的行列数shape?alternative为备择假设的形式，
             可选‘two-sided’双边检验, ‘larger’右尾检验, ‘smaller’左尾检验；
-            usevar是否要求方差齐性，pooled要求， unequal 不要求；value指定原假设取等号时的检验值"""
-            d = ws.ttest_ind(se2, se1, alternative='larger', usevar='unequal', value=0)
+            usevar是否要求方差齐性， pooled 要求， unequal 不要求；value指定原假设取等号时的检验值"""
+            # d = ws.ttest_ind(se2, se1, alternative='larger', usevar='unequal', value=0)
+            d = ws.ttest_ind(se2, se1, alternative='larger', usevar=us, value=0)
             print(d)
-
-    @tools.time_show
-    def fc_levene():  # 用Levene方法分别对各因素进行方差齐性检验并解释结果
-        import numpy as np
-        from scipy import stats   # 里面有方差齐性检验方差
-
-        path_ = tools.get_conn_cur(f='p')
-        df = pd.read_csv(
-            path_/"""my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601_up.csv""",
-            dtype={'code': object},
-            sep=',',
-            na_values=['NULL']
-        )
-        df['2018-06-01'] = 1/df['2018-06-01']
-        df['2019-06-01'] = 1/df['2019-06-01']
-        # df['2020-06-01'] = df['2020-06-01']
-        df['2021-06-01'] = 1/df['2021-06-01']
-        # print(df['2020-06-01'])
-        # 用Levene方法分别对各因素进行方差齐性检验并解释结果
-        # for gg in df.iloc[:, 3:-2]:
-        for gg in df.iloc[:, 3:-2]:
-            df_c = df[[gg, 'jzcsyl']]
-            d1 = df_c[df_c['jzcsyl'] == 1][gg].values
-            d2 = df_c[df_c['jzcsyl'] == 2][gg].values
-            d3 = df_c[df_c['jzcsyl'] == 3][gg].values
-            # 样本数据，可能具有不同的长度。只接受一维样本
-            year_jzc = stats.levene(*[d1, d2, d3])
-            print(gg, np.round(year_jzc, 2))
-        # P=0.0 净资产收益率的三组数据之间有显著差异。2016-06-01 [0.23  0.795]
 
     def f_oneway(self):  # 单因素方差分析
         from scipy.stats import f_oneway
         """scipy.stats的f模块可调用各种显著性水平下，对应的两个自由度的F临界值。
-        scipy.stats.f.ppf(1-显著性水平，自由度1，自由度2)"""
+        scipy.stats.f.ppf(1-显著性水平，自由度1，自由度2)
+        方差分析ANOVA-F检验
+        需要数据满足以下两个基本前提：
+        数据独立
+        各观测变量总体要服从正态分布
+        各观测变量的总体满足方差齐
+        """
 
         # data1 = [29.6, 24.3, 28.5, 32.0]
         # data2 = [27.3, 32.6, 30.8, 34.8]
@@ -317,38 +386,32 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
 
     @tools.time_show
     def anova_ols(self):  # 最小二乘法拟合 方差分析
-        import pandas as pd
-        from statsmodels.stats.anova import anova_lm
-        from statsmodels.formula.api import ols
-
-        data1 = [29.6, 24.3, 28.5, 32.0]
-        data2 = [27.3, 32.6, 30.8, 34.8]
-        data3 = [5.8, 6.2, 11.0, 8.3]
-        data4 = [21.6, 17.4, 18.3, 19.0]
-        data5 = [29.2, 32.8, 25.0, 24.2]
-        # 由于5组数据都是一个变量的不同水平，需要合并成一列数据，方便算法计算
-        num = sorted(["d1", "d2", "d3", "d4", "d5"]*4)  # 扩展4行名称并排序
-        data = data1+data2+data3+data4+data5  # 将5组数据合并成一个list
-        df = pd.DataFrame({"num": num, "data": data})
-        print(df)
-        mod = ols("data~num", data=df).fit()
-        res = anova_lm(mod, typ=2)  # 2表示dataframe，有1,2,3这三个字，2代表dataframe格式
-        print(res)
-        # df表示自由度，sum_sq表示离差平方和，F表示F检验值，PR表示p值，residul表示残差
-        return
-        from statsmodels.formula.api import ols  # 最小二乘法拟合
+        # import pandas as pd
         from statsmodels.stats.anova import anova_lm  # 方差分析
-        path_ = tools.get_conn_cur(f='p')
-        df = pd.read_csv(
-            path_/"""my_test_stock/jzcsyl/jzcsyl_csv/jzcsyl20150601_up.csv""",
-            dtype={'code': object},
-            sep=',',
-            na_values=['NULL']
-        )
-        df['2018-06-01'] = 1/df['2018-06-01']
-        df['2019-06-01'] = 1/df['2019-06-01']
-        # df['2020-06-01'] = df['2020-06-01']
-        df['2021-06-01'] = 1/df['2021-06-01']
+        from statsmodels.formula.api import ols  # 最小二乘法拟合
+
+        # data1 = [29.6, 24.3, 28.5, 32.0]
+        # data2 = [27.3, 32.6, 30.8, 34.8]
+        # data3 = [5.8, 6.2, 11.0, 8.3]
+        # data4 = [21.6, 17.4, 18.3, 19.0]
+        # data5 = [29.2, 32.8, 25.0, 24.2]
+        # # 由于5组数据都是一个变量的不同水平，需要合并成一列数据，方便算法计算
+        # num = sorted(["d1", "d2", "d3", "d4", "d5"]*4)  # 扩展4行名称并排序
+        # data = data1+data2+data3+data4+data5  # 将5组数据合并成一个list
+        # df = pd.DataFrame({"num": num, "data": data})
+        # # print(df)
+        # mod = ols("data~num", data=df).fit()
+        # res = anova_lm(mod, typ=2)  # 2表示dataframe，有1,2,3这三个字，2代表dataframe格式
+        # print(res)
+        # df表示自由度，sum_sq表示离差平方和，F表示F检验值，PR表示p值，residul表示残差
+        # return
+        tm = ToolsMain()
+        df = tm.tool_df()  # 获取ｃｓｖ数据
+
+        # df['2018-06-01'] = 1/df['2018-06-01']
+        # df['2019-06-01'] = 1/df['2019-06-01']
+        # # df['2020-06-01'] = df['2020-06-01']
+        # df['2021-06-01'] = 1/df['2021-06-01']
         df.rename(
             columns={
                 "2016-06-01": "a2016",
@@ -369,25 +432,28 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
             # C指的是Categorical variables　截距项intercept
             model = ols('{} ~C(jzcsyl)'.format(gg), data=df).fit()
             # model = ols('{} ~jzc_type'.format(gg), data=df[[gg, 'jzc_type']]).fit()
-            print(model.summary())
-            # anova_table = anova_lm(model, type=1)
-            # print(pd.DataFrame(anova_table))
+            # print(model.summary())
+            print(pd.DataFrame(anova_lm(model, type=2)))
         # print(df)
         """
         -formula是回归的公式 y~x左边为因变量，右边为自变量
         -data为使用的数据，必须是pandas.DataFrame格式
+        sum_sq表示离差平方和
         p值是概率，表示某一事件发生的可能性大小。如果P值很小，说明原假设情况的发生的概率很小，
         而如果出现了，根据小概率原理，我们就有理由拒绝原假设，P值越小，我们拒绝原假设的理由越充分。
         总之，P值越小，表明结果越显著。
         """
 
 
-# ParaTest().zt_test()　　# 正态检验, 正态\ｔ分布估计置信区间
+# ParaTest().fc_levene(f=2)  # f=2比较２个
+# ParaTest().zt_test(f='mean')  # 正态检验, 正态\ｔ分布估计置信区间
+ParaTest().zt_kstest()  # kstest正态检验
+# ParaTest().zt_test(f='shapiro')  # 正态检验, 正态\ｔ分布估计置信区间
 # ParaTest().z_test()  # z检验
-# ParaTest().t_test()  # t检验
+# ParaTest().t_test()  # 单样本t检验
 # ParaTest().t_ttest_ind()  # 两总体参数t检验
 # ParaTest().f_oneway()  # 单因素方差分析
-ParaTest().anova_ols()  # 单因素方差分析ols最小二乘法拟合 
+# ParaTest().anova_ols()  # 单因素方差分析ols最小二乘法拟合
 
 
 class Test:  # 非参数检验
