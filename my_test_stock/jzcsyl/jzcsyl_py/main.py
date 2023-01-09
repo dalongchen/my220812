@@ -190,23 +190,11 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
                 if f == 'shapiro':  # 正态性检验
                     # Shapiro-Wilk test, x 为待检测数据，返回统计量和P值,适合样本量小于50,
                     # 当p值大于指定的显著性水平0.05，则接受原假设
-                    # print(list(series_i))
+                    # data = [87, 77, 92, 68, 80, 78, 84, 77, 81, 80, 80, 77, 92, 86,
+                    #         76, 80, 81, 75, 77, 72, 81, 72, 84, 86, 80, 68, 77, 87,
+                    #         76, 77, 78, 92, 75, 80, 78]
                     print(stats.shapiro(series_i))
-
-    def zt_kstest(self):  # kstest正态检验
-        from scipy import stats
-
-        data = [87, 77, 92, 68, 80, 78, 84, 77, 81, 80, 80, 77, 92, 86,
-                76, 80, 81, 75, 77, 72, 81, 72, 84, 86, 80, 68, 77, 87,
-                76, 77, 78, 92, 75, 80, 78]
-        # 样本数据，35位健康男性在未进食之前的血糖浓度
-        df = pd.DataFrame(data, columns=['value'])
-        u = df['value'].mean()  # 计算均值
-        std = df['value'].std()  # 计算标准差
-        print(stats.kstest(df['value'], 'norm', (u, std)))
-        # .kstest方法：KS检验，参数分别是：待检验的数据，检验方法（这里设置成norm正态分布），均值与标准差
-        # 结果返回两个值：statistic → D值，pvalue → P值
-        # p值大于0.05，为正态分布
+                    # return
 
     @tools.time_show
     def fc_levene(self, f):  # 用Levene方法分别对各因素进行方差齐性检验
@@ -432,8 +420,8 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
             # C指的是Categorical variables　截距项intercept
             model = ols('{} ~C(jzcsyl)'.format(gg), data=df).fit()
             # model = ols('{} ~jzc_type'.format(gg), data=df[[gg, 'jzc_type']]).fit()
-            # print(model.summary())
-            print(pd.DataFrame(anova_lm(model, type=2)))
+            print(model.summary())
+            # print(pd.DataFrame(anova_lm(model, type=2)))
         # print(df)
         """
         -formula是回归的公式 y~x左边为因变量，右边为自变量
@@ -447,7 +435,6 @@ class ParaTest:  # 参数检验,单＼双样本检验，ｆ检验－方差分析
 
 # ParaTest().fc_levene(f=2)  # f=2比较２个
 # ParaTest().zt_test(f='mean')  # 正态检验, 正态\ｔ分布估计置信区间
-ParaTest().zt_kstest()  # kstest正态检验
 # ParaTest().zt_test(f='shapiro')  # 正态检验, 正态\ｔ分布估计置信区间
 # ParaTest().z_test()  # z检验
 # ParaTest().t_test()  # 单样本t检验
@@ -456,10 +443,81 @@ ParaTest().zt_kstest()  # kstest正态检验
 # ParaTest().anova_ols()  # 单因素方差分析ols最小二乘法拟合
 
 
-class Test:  # 非参数检验
-    def ppr(self):
-        print(self)
-        print(self.__class__)
+class NotParaTest:  # 非参数检验
 
-# t = Test()
-# t.ppr()
+    def zt_kstest(self):  # kstest正态检验,是否同分布
+        from scipy import stats
+        """各阶段两组数据的累计概率分布差值的最大值.Kolmogorov–Smirnov,K-S 检验，样本量适合50~300，x 待检测数据，
+        cdf为待检验分布，返回统计量和P值,结果返回两个值statistic → D值，pvalue → p值大于0.05，为正态分布"""
+
+        # import numpy as np
+        # # 创建随机生成器
+        # rng = np.random.default_rng()
+        """stats.norm.cdf(α,均值,方差)：累积概率密度函数-cumulative distribution function
+        uniform.rvs-均匀分布"""
+        # x = stats.uniform.rvs(size=100, random_state=rng)
+        # x = stats.norm.rvs(size=100, loc=0, random_state=rng)
+        # x = stats.norm.rvs(size=100, random_state=rng)
+        # stats.norm.cdf默认为标准正态分布
+        # print(stats.kstest(x, stats.norm.cdf))
+        # return
+        # 拉普拉斯分布
+        # sample1 = stats.laplace.rvs(size=105, random_state=rng)
+        # sample2 = stats.laplace.rvs(size=95, random_state=rng)
+        # print(stats.kstest(sample1, sample2))
+        # return
+
+        tm = ToolsMain()
+        df = tm.tool_df()  # 获取ｃｓｖ数据
+        list_fac = df['jzcsyl'].unique()  # 分组标签取出
+        for gg in df.iloc[:, 3:-2]:
+            # print(stats.shapiro(df[gg]))  # 对每一年涨幅做正态性检验
+            print(gg)
+            for i in list_fac:
+                ser = df[df['jzcsyl'] == i][gg]
+                u = ser.mean()  # 计算均值
+                std = ser.std()  # 计算标准差
+                # print("样本均值为：%.2f，样本标准差为：%.2f" % (u,std))
+                print(stats.kstest(ser, 'norm', (u, std)))
+                # print(stats.kstest(ser, stats.norm.cdf))
+                # return
+
+    def kruskal_test(self):  # Kruskal-Wallis 检验
+        from scipy import stats
+        A = [1, 3, 6, 9, 0]
+        B = [3, 5, 1, 4, 11, 34]
+        C = [1, 9, 5, 3, 0, 2, 4, 5, 7, 12]
+        kw = stats.kruskal(A, B, C)
+        print(kw)
+
+    def chisquare_test(self):  # 卡方检验
+        from scipy import stats
+
+        A = [1, 3, 6, 9, 0]
+        B = [3, 5, 12, 54, 11]
+        chi = stats.chisquare(A, B)
+        print(chi)
+
+
+# NotParaTest().zt_kstest()  # kstest正态检验
+# NotParaTest().kruskal_test()  # Kruskal-Wallis 检验
+NotParaTest().chisquare_test()  # 卡方检验
+
+
+class MultiComp:  # 多重比较
+    """由于是双样本假设检验，有时候刚刚接触该方法的读者容易直接将两个总体当做样本来进行检验，那得到的结论是错误的，
+    如：两天就生产了个10个产品，直接将这10个产品的某参数进行了双样本的假设检验。其实如果总体数比较少的时候，
+    无需统计估计，可以直接比较均值?"""
+
+    def multi_comp(self):  #
+        from statsmodels.stats.multicomp import MultiComparison
+        tm = ToolsMain()
+        df = tm.tool_df()  # 获取ｃｓｖ数据
+        """true有差异。false没有差异"""
+        for gg in df.iloc[:, 3:-2]:
+            print(gg)
+            mc = MultiComparison(df[gg], groups=df['jzcsyl'])
+            print(mc.tukeyhsd(alpha=0.05))
+
+
+# MultiComp().multi_comp()  #
